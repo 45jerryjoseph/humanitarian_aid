@@ -946,18 +946,10 @@ export default Canister({
         return Err({ NotFound: "invalid payload" });
       }
 
-      // Check if the associated driver exists
-      const driverOpt = driversStorage.get(payload.associated_driver);
-
-      if ("None" in driverOpt) {
-        return Err({
-          NotFound: `driver with id=${payload.associated_driver} not found`,
-        });
-      }
-
       // Create an event with a unique id generated using UUID v4
       const fieldWorker = {
         id: uuidv4(),
+        owner: ic.caller(),
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -1000,11 +992,14 @@ export default Canister({
       const fieldWorkerOpt = fieldWorkerStorage
         .values()
         .filter(
-          (fieldWorker) => fieldWorker.owner.toText() === ic.caller().toText()
+          (fieldWorker) =>
+            fieldWorker &&
+            fieldWorker.owner &&
+            fieldWorker.owner.toText() === ic.caller().toText()
         );
       if (fieldWorkerOpt.length === 0) {
         return Err({
-          NotFound: `No field worker found for owner: ${ic.caller()}`,
+          NotFound: `No field worker found for owner: ${ic.caller().toText()}`,
         });
       }
 
@@ -1044,6 +1039,47 @@ export default Canister({
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
+
+      // Ensure that the Warehouse Manager exists
+      const warehouseManagerOpt = warehouseManagerStorage.get(
+        payload.warehouseManagerId
+      );
+
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `Warehouse Manager with id=${payload.warehouseManagerId} not found`,
+        });
+      }
+
+      // Ensure that the Distributors Company exists
+      const distributorCompanyOpt = distributorsCompanyStorage.get(
+        payload.distributorsId
+      );
+
+      if ("None" in distributorCompanyOpt) {
+        return Err({
+          NotFound: `Distributors Company with id=${payload.distributorsId} not found`,
+        });
+      }
+
+      // Ensure that the Item exists
+      const itemOpt = itemsStorage.get(payload.itemId);
+
+      if ("None" in itemOpt) {
+        return Err({
+          NotFound: `Item with id=${payload.itemId} not found`,
+        });
+      }
+
+      // Ensure that the admin exists
+      const adminOpt = adminStorage.get(payload.adminId);
+
+      if ("None" in adminOpt) {
+        return Err({
+          NotFound: `Admin with id=${payload.adminId} not found`,
+        });
+      }
+
       // Create an event with a unique id generated using UUID v4
       const deliveryDetails = {
         id: uuidv4(),
@@ -1147,20 +1183,29 @@ export default Canister({
     [text, text],
     Result(Types.DeliveryDetails, Types.Message),
     (deliveryId, driverId) => {
+      // Retrieve delivery details
       const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
       if ("None" in deliveryDetailsOpt) {
         return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
+          NotFound: `Delivery details with id=${deliveryId} not found`,
         });
       }
       const deliveryDetails = deliveryDetailsOpt.Some;
+
+      // Retrieve driver by ID
       const driverOpt = driversStorage.get(driverId);
       if ("None" in driverOpt) {
-        return Err({ NotFound: `driver with id=${driverId} not found` });
+        return Err({
+          NotFound: `Driver with id=${driverId} not found`,
+        });
       }
-      const driver = driverOpt.Some;
-      deliveryDetails.driverId = Some(driver);
+
+      // Assign the driver ID to the delivery details
+      deliveryDetails.driverId = Some(driverId);
+
+      // Update the storage
       deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+
       return Ok(deliveryDetails);
     }
   ),
@@ -1188,17 +1233,42 @@ export default Canister({
     [text],
     Result(Types.DeliveryDetails, Types.Message),
     (deliveryId) => {
+      // Retrieve delivery details
       const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
       if ("None" in deliveryDetailsOpt) {
         return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
+          NotFound: `Delivery details with id=${deliveryId} not found`,
         });
       }
       const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveryStatus = "Delivered";
-      deliveryDetails.deliveredDate = Some(new Date());
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-      return Ok(deliveryDetails);
+
+      // Check if the delivery is already marked as delivered
+      if (deliveryDetails.deliveryStatus === "Delivered") {
+        return Err({
+          InvalidPayload: `Delivery with id=${deliveryId} is already marked as delivered.`,
+        });
+      }
+
+      // Create updated delivery details with new status and date
+      const updatedDeliveryDetails = {
+        ...deliveryDetails,
+        deliveryStatus: "Delivered",
+        deliveredDate: Some(new Date().toISOString()),
+      };
+
+      // Attempt to save the updated delivery details
+      try {
+        deliveryDetailsStorage.insert(
+          deliveryDetails.id,
+          updatedDeliveryDetails
+        );
+      } catch (error) {
+        return Err({
+          InvalidPayload: `Failed to update delivery details`,
+        });
+      }
+
+      return Ok(updatedDeliveryDetails);
     }
   ),
 

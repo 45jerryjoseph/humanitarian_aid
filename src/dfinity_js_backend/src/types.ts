@@ -134,6 +134,7 @@ export const Driver = Record({
 // New one Field Worker
 export const FieldWorker = Record({
   id: text,
+  owner: Principal,
   fullName: text,
   status: text,
   contact_info: ContactInfo,
