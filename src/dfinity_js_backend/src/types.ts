@@ -512,7 +512,7 @@ export const ReserveDriverPayment = Record({
   memo: nat64,
 });
 
-export const ReserveFarmerPayment = Record({
+export const ReserveAdminPayment = Record({
   ProcessorId: text,
   price: nat64,
   status: text,
