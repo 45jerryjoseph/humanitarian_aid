@@ -1,0 +1,11 @@
+{
+  "dfinity_js_backend": {
+    "ic": "556zq-cyaaa-aaaak-akufa-cai"
+  },
+  "dfinity_js_frontend": {
+    "ic": "5277e-paaaa-aaaak-akufq-cai"
+  },
+  "internet_identity": {
+    "ic": "5pyoj-oiaaa-aaaak-akuga-cai"
+  }
+}
