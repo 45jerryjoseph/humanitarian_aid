@@ -18,7 +18,7 @@ import {
   getCompletedDeliveryDetailsForProcessingCompany,
 } from "../../../utils/deliveries";
 import { getFarmerSalesAdvertsApprovedByProcessorCompany, getFarmerSalesAdvertsOfProcessorCompany, getPaidAdverts, markFarmerSalesAdvertAsApproved } from "../../../utils/advert";
-import { getProduct } from "../../../utils/product";
+import { getProduct } from "../../../utils/item";
 import PayFarmer from "../components/PayFarmer";
 import AddDeliveryDetails from "../DeliveryDetails/AddDeliveryDetails";
 import { acceptDeliveryTender, getDeliveryTendersOfProcessingCompany } from "../../../utils/tender";

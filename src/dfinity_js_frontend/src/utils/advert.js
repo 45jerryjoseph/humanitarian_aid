@@ -1,6 +1,6 @@
-export async function createFarmerSalesAdvert(advertPayload) {
+export async function createAdminProcessingAdvert(advertPayload) {
     try {
-      return await window.canister.agroChain.createFarmerSalesAdvert(advertPayload);
+      return await window.canister.aidChain.createAdminProcessingAdvert(advertPayload);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {
@@ -11,10 +11,10 @@ export async function createFarmerSalesAdvert(advertPayload) {
     }
   }
 
-//   getAllFarmerSalesAdverts
-export async function getAllFarmerSalesAdverts() {
+//   getAllAdminProcessingAdverts
+export async function getAllAdminProcessingAdverts() {
     try {
-      return await window.canister.agroChain.getAllFarmerSalesAdverts();
+      return await window.canister.aidChain.getAllAdminProcessingAdverts();
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -24,10 +24,10 @@ export async function getAllFarmerSalesAdverts() {
     }
 }
 
-// getFarmerSalesAdvert
-export async function getFarmerSalesAdvert(id) {
+// getAdminProcessingAdvert
+export async function getAdminProcessingAdvert(id) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvert(id);
+      return await window.canister.aidChain.getAdminProcessingAdvert(id);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -37,10 +37,10 @@ export async function getFarmerSalesAdvert(id) {
     }
 }
 
-// updateFarmerSalesAdvert
-export async function updateFarmerSalesAdvert(id, advertPayload) {
+// updateAdminProcessingAdvert
+export async function updateAdminProcessingAdvert(id, advertPayload) {
     try {
-      return await window.canister.agroChain.updateFarmerSalesAdvert(id, advertPayload);
+      return await window.canister.aidChain.updateAdminProcessingAdvert(id, advertPayload);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {
@@ -50,10 +50,11 @@ export async function updateFarmerSalesAdvert(id, advertPayload) {
     }
 }
 
-// getFarmerSalesAdvertsOfFarmer
-export async function getFarmerSalesAdvertsOfFarmer(farmerId) {
+
+// getAdminProcessingAdvertsOfAdmin
+export async function getAdminProcessingAdvertsOfAdmin(adminId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsOfFarmer(farmerId);
+      return await window.canister.aidChain.getAdminProcessingAdvertsOfAdmin(adminId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -64,10 +65,10 @@ export async function getFarmerSalesAdvertsOfFarmer(farmerId) {
 }
 
 
-// getFarmerSalesAdvertsOfProduct
-export async function getFarmerSalesAdvertsOfProduct(productId) {
+// getAdminProcessingAdvertsOfItem
+export async function getAdminProcessingAdvertsOfItem(itemId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsOfProduct(productId);
+      return await window.canister.aidChain.getAdminProcessingAdvertsOfItem(itemId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -77,10 +78,10 @@ export async function getFarmerSalesAdvertsOfProduct(productId) {
     }
 }
 
-// getFarmerSalesAdvertsOfProcessorCompany
-export async function getFarmerSalesAdvertsOfProcessorCompany(processorCompanyId) {
+// getAdminProcessingAdvertsOfWarehouseManager
+export async function getAdminProcessingAdvertsOfWarehouseManager(warehouseManagerId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsOfProcessorCompany(processorCompanyId);
+      return await window.canister.aidChain.getAdminProcessingAdvertsOfWarehouseManager(warehouseManagerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -90,10 +91,10 @@ export async function getFarmerSalesAdvertsOfProcessorCompany(processorCompanyId
     }
 }
 
-// markFarmerSalesAdvertAsApproved
-export async function markFarmerSalesAdvertAsApproved(id) {
+// markAdminProcessingAdvertAsApproved
+export async function markAdminProcessingAdvertAsApproved(id) {
     try {
-      return await window.canister.agroChain.markFarmerSalesAdvertAsApproved(id);
+      return await window.canister.aidChain.markAdminProcessingAdvertAsApproved(id);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {
@@ -103,11 +104,11 @@ export async function markFarmerSalesAdvertAsApproved(id) {
     }
 }
 
-// getFarmerSalesAdvertsApprovedByProcessorCompany
+// getAdminProcessingAdvertsApprovedByWarehouseManager
 
-export async function getFarmerSalesAdvertsApprovedByProcessorCompany(processorCompanyId) {
+export async function getAdminProcessingAdvertsApprovedByWarehouseManager(warehouseManagerId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsApprovedByProcessorCompany(processorCompanyId);
+      return await window.canister.aidChain.getAdminProcessingAdvertsApprovedByWarehouseManager(warehouseManagerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -117,10 +118,10 @@ export async function getFarmerSalesAdvertsApprovedByProcessorCompany(processorC
     }
 }
 
-// getFarmerSalesAdvertsApprovedForFarmer
-export async function getFarmerSalesAdvertsApprovedForFarmer(farmerId) {
+// getAdminProcessingAdvertsApprovedForAdmin
+export async function getAdminProcessingAdvertsApprovedForAdmin(adminId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsApprovedForFarmer(farmerId);
+      return await window.canister.aidChain.getAdminProcessingAdvertsApprovedForAdmin(adminId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -130,10 +131,10 @@ export async function getFarmerSalesAdvertsApprovedForFarmer(farmerId) {
     }
 }
 
-// getPaidAdverts
-export async function getPaidAdverts(processorCompanyId) {
+// getPaidAdminProcessingAdverts
+export async function getPaidAdminProcessingAdverts(warehouseManagerId) {
     try {
-      return await window.canister.agroChain.getPaidAdverts(processorCompanyId);
+      return await window.canister.aidChain.getPaidAdminProcessingAdverts(warehouseManagerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -143,10 +144,10 @@ export async function getPaidAdverts(processorCompanyId) {
     }
 }
 
-// getFarmerSalesAdvertsCompletedForFarmer
-export async function getFarmerSalesAdvertsCompletedForFarmer(farmerId) {
+// getAdminProcessingAdvertCompletedForAdmin
+export async function getAdminProcessingAdvertCompletedForAdmin(adminId) {
     try {
-      return await window.canister.agroChain.getFarmerSalesAdvertsCompletedForFarmer(farmerId);
+      return await window.canister.aidChain.getAdminProcessingAdvertCompletedForAdmin(adminId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -156,10 +157,10 @@ export async function getFarmerSalesAdvertsCompletedForFarmer(farmerId) {
     }
 }
 
-// markFarmerSalesAdvertAsFarmerPaid
-export async function markFarmerSalesAdvertAsFarmerPaid(id) {
+// markAdminProcessingAdvertAsAdminPaid
+export async function markAdminProcessingAdvertAsAdminPaid(id) {
     try {
-      return await window.canister.agroChain.markFarmerSalesAdvertAsFarmerPaid(id);
+      return await window.canister.aidChain.markAdminProcessingAdvertAsAdminPaid(id);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {
@@ -169,10 +170,10 @@ export async function markFarmerSalesAdvertAsFarmerPaid(id) {
     }
 }
 
-// checkIfProductPickedUp
-export async function checkIfProductPickedUp(id) {
+// checkIfItemPickedUp
+export async function checkIfItemPickedUp(id) {
     try {
-      return await window.canister.agroChain.checkIfProductPickedUp(id);
+      return await window.canister.aidChain.checkIfItemPickedUp(id);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {

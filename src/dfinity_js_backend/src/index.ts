@@ -47,27 +47,64 @@ import { Type } from "@dfinity/candid/lib/cjs/idl";
  * 2 and 3 are not being used directly in the constructor but the Azle compiler utilizes these values during compile time
  */
 
-const productsStorage = StableBTreeMap(0, text, Types.Product);
-const farmersStorage = StableBTreeMap(1, text, Types.Farmer);
+const adminStorage = StableBTreeMap(0, text, Types.Admin);
+const itemsStorage = StableBTreeMap(1, text, Types.Item);
 const vehiclesStorage = StableBTreeMap(2, text, Types.Vehicle);
 const driversStorage = StableBTreeMap(3, text, Types.Driver);
-const distributorsCompanyStorage = StableBTreeMap(4, text, Types.DistributorsCompany);
-const processingCompanyStorage = StableBTreeMap(5, text, Types.ProcessingCompany);
-// const WholesalersStorage = StableBTreeMap(6, text, Types.Wholesalers);
-const deliveryTenderStorage = StableBTreeMap(6, text, Types.DeliveryTender);
+const distributorsCompanyStorage = StableBTreeMap(
+  4,
+  text,
+  Types.DistributorsCompany
+);
+const warehouseManagerStorage = StableBTreeMap(5, text, Types.WarehouseManager);
+const fieldWorkerStorage = StableBTreeMap(6, text, Types.FieldWorker);
 const deliveryDetailsStorage = StableBTreeMap(7, text, Types.DeliveryDetails);
-const FarmerSaleAdvertStorage = StableBTreeMap(8, text, Types.FarmerSaleAdvert);
-const pendingDriverReserves = StableBTreeMap(9, nat64, Types.ReserveDriverPayment);
-const persistedDriverReserves = StableBTreeMap(10, Principal, Types.ReserveDriverPayment);
-const pendingFarmerReserves = StableBTreeMap(11, nat64, Types.ReserveFarmerPayment);
-const persistedFarmerReserves = StableBTreeMap(12, Principal, Types.ReserveFarmerPayment);
-const pendingDistributorReserves = StableBTreeMap(13, nat64, Types.ReserveDistributorsPayment);
-const persistedDistributorReserves = StableBTreeMap(14, Principal, Types.ReserveDistributorsPayment);
-const pendingProcessingReserves = StableBTreeMap(15, nat64, Types.ReserveProcessingPayment);
-const persistedProcessingReserves = StableBTreeMap(16, Principal, Types.ReserveProcessingPayment);
-
-
-
+const deliveryTenderStorage = StableBTreeMap(8, text, Types.DeliveryTender);
+const adminProcessingAdvertStorage = StableBTreeMap(
+  9,
+  text,
+  Types.AdminProcessingAdvert
+);
+const pendingDriverReserves = StableBTreeMap(
+  10,
+  nat64,
+  Types.ReserveDriverPayment
+);
+const persistedDriverReserves = StableBTreeMap(
+  11,
+  Principal,
+  Types.ReserveDriverPayment
+);
+const pendingAdminReserves = StableBTreeMap(
+  12,
+  nat64,
+  Types.ReserveAdminPayment
+);
+const persistedFarmerReserves = StableBTreeMap(
+  13,
+  Principal,
+  Types.ReserveAdminPayment
+);
+const pendingDistributorReserves = StableBTreeMap(
+  14,
+  nat64,
+  Types.ReserveDistributorsPayment
+);
+const persistedDistributorReserves = StableBTreeMap(
+  15,
+  Principal,
+  Types.ReserveDistributorsPayment
+);
+const pendingWarehouseReserves = StableBTreeMap(
+  16,
+  nat64,
+  Types.ReserveWarehousePayment
+);
+const persistedProcessingReserves = StableBTreeMap(
+  17,
+  Principal,
+  Types.ReserveWarehousePayment
+);
 
 const PAYMENT_RESERVATION_PERIOD = 12000n; // reservation period in seconds
 
@@ -78,363 +115,432 @@ const PAYMENT_RESERVATION_PERIOD = 12000n; // reservation period in seconds
 const icpCanister = Ledger(Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai"));
 
 export default Canister({
-
-  // ** Start of Product Functions **
-
-  // function to create product using ProductPayload
-  createProduct: update(
-    [Types.ProductPayload, text],
-    Result(Types.Product, Types.Message),
-    (payload,farmerId) => {
-      // Check if the payload is a valid object
-      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
-        return Err({ NotFound: "invalid payload" });
-      }
-
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${farmerId} not found` });
-      }
-
-      const farmer = farmerOpt.Some;
-      if (farmer.farmProducts.length > 10) {
-        return Err({ NotFound: `farmer with id=${farmerId} has reached the maximum number of products` });
-      }
-
-
-      // Create an event with a unique id generated using UUID v4
-      const product = {
-        id: uuidv4(),
-        price: 0n,
-        quantity: 0n,
-        owner: farmerId,
-        grade: "",
-        status: "New",
-        packagedDetails: None,
-        pickedUp: false,
-        packaged: false,
-        farmerSold: false,
-        distributionSuccesful: false,
-        processingSuccesful: false,
-        ...payload,
-      };
-      // Insert the product into the productsStorage and the farmer farmProducts
-
-      farmer.farmProducts.push(product);
-      productsStorage.insert(product.id, product);
-      return Ok(product);
-    }
-  ),
-
-  // grade and Sort(add quantity and Price ) products & change status to graded
-  gradeProduct: update(
-    [Types.GradePayload],
-    Result(Types.Product, Types.Message),
-    (gradePayload) => {
-      const productOpt = productsStorage.get(gradePayload.productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${gradePayload.productId} not found` });
-      }
-      const product = productOpt.Some;
-      product.grade = gradePayload.grade; // Give the different grade to the product eg (2kg of Grade A Tomatoes, 5kg of Grade B Tomatoes, etc)
-      product.quantity = gradePayload.quantity;
-      product.price = gradePayload.price;
-      product.status = "Graded";
-      console.log("product",product);
-      productsStorage.insert(product.id, product);
-      return Ok(product);
-    }
-  ),
-
-  // 
-
-  // function to get all products
-  getAllProducts: query([], Vec(Types.Product), () => {
-    console.log("productsStorage",productsStorage.values());
-    return productsStorage.values();
-  }),
-
-  // function to get product by id
-  getProduct: query([text], Result(Types.Product, Types.Message), (id) => {
-    const productOpt = productsStorage.get(id);
-    if ("None" in productOpt) {
-      return Err({ NotFound: `product with id=${id} not found` });
-    }
-    return Ok(productOpt.Some);
-  }),
-
-  // function to update product
-  updateProduct: update(
-    [text, Types.ProductPayload],
-    Result(Types.Product, Types.Message),
-    (id, payload) => {
-      // Check if the payload is a valid object
-      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
-        return Err({ NotFound: "invalid payload" });
-      }      
-      const productOpt = productsStorage.get(id);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${id} not found` });
-      }
-      const product = productOpt.Some;
-      const updatedProduct = {
-        ...product,
-        ...payload,
-      };
-      productsStorage.insert(product.id, updatedProduct);
-      return Ok(updatedProduct);
-    }
-  ),
-
-  // Function to add packaged Details to a product
-  addPackagedDetails: update(
-    [text, Types.Packaging],
-    Result(Types.Product, Types.Message),
-    (productId, payload) => {
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
-      }
-      const product = productOpt.Some;
-      product.packagedDetails = Some(payload);
-      product.status = "Packaged";
-      product.packaged = true;
-      productsStorage.insert(product.id, product);
-      return Ok(product);
-    }
-  ),
-
-  // Mark product as picked up by the distributor
-  markProductAsPickedUp: update(
-    [text],
-    Result(Types.Product, Types.Message),
-    (productId) => {
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
-      }
-      const product = productOpt.Some;
-      product.pickedUp = true;
-      productsStorage.insert(product.id, product);
-      return Ok(product);
-    }
-  ),
-
-  // get New Products for farmer
-  getNewProductsForFarmer: query([text], Vec(Types.Product), (farmerId) => {
-    const products = productsStorage.values();
-    return products.filter(
-      (product) => product.status === "New" && product.owner === farmerId
-    );
-  }),
-
-  // get Graded Products for farmer
-  getGradedProductsForFarmer: query([text], Vec(Types.Product), (farmerId) => {
-    const products = productsStorage.values();
-    return products.filter(
-      (product) => product.status === "Graded" && product.owner === farmerId
-    );
-  }),
-
-  // getPackagedProductsForFarmer
-  getPackagedProductsForFarmer: query([text], Vec(Types.Product), (farmerId) => {
-    const products = productsStorage.values();
-    return products.filter(
-      (product) => product.packaged && product.owner === farmerId && product.status === "Packaged"
-    );
-  }),
-
-  // ** End of Product Functions **
-
-  // ** Start of Farmer Functions **
-
-  // function to create farmer using FarmerPayload
-  createFarmer: update(
-    [Types.FarmerPayload],
-    Result(Types.Farmer, Types.Message),
+  // ** Start of Admin Functions **
+  // Function to create admin using AdminPayload
+  createAdmin: update(
+    [Types.AdminPayload],
+    Result(Types.Admin, Types.Message),
     (payload) => {
       // Check if the payload is a valid object
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
-      // Create an event with a unique id generated using UUID v4
-      const farmer = {
+      // Create an admin with a unique id generated using UUID v4
+      const admin = {
         id: uuidv4(),
         owner: ic.caller(),
-        farmerRating: 0n,
-        farmProducts: [],
-        pickedUpProducts: [],
-        certification: [],
+        organisationItems:[],
+        pickedUpItems:[],
+        ...payload,
+        role: "Admin",
+        status: "Active",
+      };
+      // Insert the admin into the adminStorage
+      adminStorage.insert(admin.id, admin);
+
+      // Return success with both the admin data and a success message
+      return {
+        Ok: admin,
+        Message: {
+          Success: `Admin '${admin.fullName}' successfully created with ID: ${admin.id}. Owner: ${admin.owner}`,
+        },
+      };
+    }
+  ),
+
+  // Function to get all admins with error handling
+  getAllAdmins: query([], Result(Vec(Types.Admin), Types.Message), () => {
+    const admins = adminStorage.values();
+    if (admins.length === 0) {
+      return Err({ NotFound: "No admins found" });
+    }
+    return Ok(admins);
+  }),
+
+  // Function to get admin by id
+  getAdmin: query([text], Result(Types.Admin, Types.Message), (id) => {
+    const adminOpt = adminStorage.get(id);
+    if ("None" in adminOpt) {
+      return Err({ NotFound: `admin with id=${id} not found` });
+    }
+    return Ok(adminOpt.Some);
+  }),
+
+  // function to get admin by owner using filter
+  getAdminByOwner: query([], Result(Types.Admin, Types.Message), () => {
+    const adminOpt = adminStorage
+      .values()
+      .filter((admin) => admin.owner.toText() === ic.caller().toText());
+    if (adminOpt.length === 0) {
+      return Err({ NotFound: `No admin found for owner: ${ic.caller()}` });
+    }
+
+    return Ok(adminOpt[0]);
+  }),
+
+  // Function to update admin
+  updateAdmin: update(
+    [text, Types.AdminPayload],
+    Result(Types.Admin, Types.Message),
+    (id, payload) => {
+      // Check if the payload is a valid object
+      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
+        return Err({ NotFound: "invalid payload" });
+      }
+      const adminOpt = adminStorage.get(id);
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `admin with id=${id} not found` });
+      }
+      const admin = adminOpt.Some;
+      const updatedAdmin = {
+        ...admin,
+        ...payload,
+      };
+      adminStorage.insert(admin.id, updatedAdmin);
+      return Ok(updatedAdmin);
+    }
+  ),
+
+  // Function to add item to Admin 
+  addAdminItem: update(
+    [text, text],
+    Result(Types.Admin, Types.Message),
+    (adminId, itemId) => {
+      const adminOpt = adminStorage.get(adminId);
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `Admin with id=${adminId} not found` });
+      }
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `Item with id=${itemId} not found` });
+      }
+
+      const admin = adminOpt.Some;
+      const item = itemOpt.Some;
+      admin.organisationItems.push(item);
+      adminStorage.insert(admin.id, admin);
+      return Ok(admin);
+    }
+  ),
+  // Function to add picked up Item to Admin check if the Item pickedUp is true
+  addPickedUpItem: update(
+    [text, text],
+    Result(Types.Admin, Types.Message),
+    (adminId, itemId) => {
+      const adminOpt = adminStorage.get(adminId);
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `Admin with id=${adminId} not found` });
+      }
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `Item with id=${itemId} not found` });
+      }
+
+      const admin = adminOpt.Some;
+      const item = itemOpt.Some;
+      admin.pickedUpItems.push(item);
+      adminStorage.insert(admin.id, admin);
+      return Ok(admin);
+    }
+  ),
+
+  // Mark Item as warehouse paid by the admin
+  markItemAsWarehousePaid: update(
+    [text], 
+    Result(Types.Item, Types.Message),
+    (itemId) => {
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.warehousePaid = true;
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
+  // get all warehouse paid items of the admin
+  getWarehousePaidItems: query([text], Vec(Types.Item), (adminId) => {
+    const items = itemsStorage.values();
+    return items.filter(
+      (item) => item.warehousePaid && item.owner === adminId
+    );
+  }
+  ),
+
+
+
+  // ** End of Admin Functions **
+
+  // ** Start of Item Functions **
+  // function to create item using ItemPayload
+  createItem: update(
+    [Types.ItemPayload, text],
+    Result(Types.Item, Types.Message),
+    (payload, adminId) => {
+      // Check if the payload is a valid object
+      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
+        return Err({ NotFound: "invalid payload" });
+      }
+
+      // Check if the admin exists
+      const adminOpt = adminStorage.get(adminId);
+
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `admin with id=${adminId} not found` });
+      }
+
+      // Create an event with a unique id generated using UUID v4
+      const item = {
+        id: uuidv4(),
+        owner: adminId,
+        quantity: 0n,
+        grade:"",
+        status: "New",
+        pickedUp: false,
+        packaged: false,
+        packagedDetails: None,
+        expiration_date: None,
+        warehousePaid: false,
+        distributionSuccesful : false,
+        warehousedSuccesful: false,
         ...payload,
       };
       // Insert the event into the eventsStorage
-      farmersStorage.insert(farmer.id, farmer);
-      return Ok(farmer);
+      itemsStorage.insert(item.id, item);
+
+      // Return success with both the item data and a success message
+      return {
+        Ok: item,
+        Message: {
+          Success: `Item '${item.name}' successfully created with ID: ${item.id}. Owner: ${item.owner}`,
+        },
+      };
     }
   ),
 
-  // function to get all farmers
-  getAllFarmers: query([], Vec(Types.Farmer), () => {
-    return farmersStorage.values();
-  }),
-
-  // function to get farmer by id
-  getFarmer: query([text], Result(Types.Farmer, Types.Message), (id) => {
-    const farmerOpt = farmersStorage.get(id);
-    if ("None" in farmerOpt) {
-      return Err({ NotFound: `farmer with id=${id} not found` });
-    }
-    return Ok(farmerOpt.Some);
-  }),
-
-  // function to update farmer
-  updateFarmer: update(
-    [text, Types.FarmerPayload],
-    Result(Types.Farmer, Types.Message),
-    (id, payload) => {
-      const farmerOpt = farmersStorage.get(id);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${id} not found` });
+  // gradeItem
+  gradeItem: update(
+    [Types.GradePayload],
+    Result(Types.Item, Types.Message),
+    (gradePayload) => {
+      const itemOpt = itemsStorage.get(gradePayload.itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${gradePayload.itemId} not found` });
       }
-      const farmer = farmerOpt.Some;
-      const updatedFarmer = {
-        ...farmer,
+      const item = itemOpt.Some;
+      item.grade = gradePayload.grade;
+      item.quantity = gradePayload.quantity;
+      item.status = "Graded";
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
+  // Function to add packaged Details to an item
+  addPackagedDetailsToItem: update(
+    [text, Types.Packaging],
+    Result(Types.Item, Types.Message),
+    (itemId, payload) => {
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+
+      item.packagedDetails = Some(payload);
+      item.status = "Packaged";
+      item.packaged = true;
+
+      // Update the item in the itemsStorage
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
+  // Mark item as picked up by the distributor
+  markItemAsPickedUp: update(
+    [text],
+    Result(Types.Item, Types.Message),
+    (itemId) => {
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.pickedUp = true;
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
+  // Function to get all items with error handling
+  getAllItems: query([], Result(Vec(Types.Item), Types.Message), () => {
+    const items = itemsStorage.values();
+    if (items.length === 0) {
+      return Err({ NotFound: "No items found" });
+    }
+    return Ok(items);
+  }),
+
+  // function to get item by id
+  getItemById: query([text], Result(Types.Item, Types.Message), (id) => {
+    const itemOpt = itemsStorage.get(id);
+    if ("None" in itemOpt) {
+      return Err({ NotFound: `item with id=${id} not found` });
+    }
+    return Ok(itemOpt.Some);
+  }),
+
+  // function to update item
+  updateItem: update(
+    [text, Types.ItemPayload],
+    Result(Types.Item, Types.Message),
+    (id, payload) => {
+      // Check if the payload is a valid object
+      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
+        return Err({ NotFound: "invalid payload" });
+      }
+      const itemOpt = itemsStorage.get(id);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${id} not found` });
+      }
+      const item = itemOpt.Some;
+      const updatedItem = {
+        ...item,
         ...payload,
       };
-      farmersStorage.insert(farmer.id, updatedFarmer);
-      return Ok(updatedFarmer);
+      itemsStorage.insert(item.id, updatedItem);
+      return Ok(updatedItem);
     }
   ),
 
-  // function to add farm product to farmer 
-  addFarmProduct: update(
-    [text, text],
-    Result(Types.Farmer, Types.Message),
-    (farmerId, productId) => {
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${farmerId} not found` });
-      }
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
-      }
-
-      const farmer = farmerOpt.Some;
-      const product = productOpt.Some;
-      farmer.farmProducts.push(product);
-      farmersStorage.insert(farmer.id, farmer);
-      return Ok(farmer);
-    }
-  ),
-
-  // function to add picked up product to farmer check if the product pickedUp is true
-  addPickedUpProduct: update(
-    [text, text],
-    Result(Types.Farmer, Types.Message),
-    (farmerId, productId) => {
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${farmerId} not found` });
-      }
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
-      }
-
-
-
-      const farmer = farmerOpt.Some;
-      const product = productOpt.Some;
-      // Mark product as picked up by the distributor
-      product.pickedUp = true;
-      farmer.pickedUpProducts.push(product);
-      farmersStorage.insert(farmer.id, farmer);
-      return Ok(farmer);
-    }
-  ),
-
-  // Mark product as farmerSold by the farmer
-  markProductAsFarmerSold: update(
+  // Function to get new items for the item owner
+  getNewItemsForOwner: query(
     [text],
-    Result(Types.Product, Types.Message),
-    (productId) => {
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
+    Result(Vec(Types.Item), Types.Message),
+    (ownerId) => {
+      try {
+        // Validate the ownerId input
+        if (!ownerId || typeof ownerId !== "string") {
+          return Err({
+            InvalidPayload: "Owner ID must be a non-empty string.",
+          });
+        }
+
+        // Fetch all items
+        const items = itemsStorage.values();
+
+        // Filter items based on status and owner
+        const filteredItems = items.filter(
+          (item) => item.status === "New" && item.owner === ownerId
+        );
+
+        // Check if any items are found
+        if (filteredItems.length === 0) {
+          return Err({
+            NotFound: `No new items found for owner ID: ${ownerId}.`,
+          });
+        }
+
+        // Return the filtered items
+        return Ok(filteredItems);
+      } catch (error) {
+        // Catch unexpected errors and return an appropriate error message
+        return Err({
+          NotFound: `An unexpected error occurred.`,
+        });
       }
-      const product = productOpt.Some;
-      product.farmerSold = true;
-      productsStorage.insert(product.id, product);
-      return Ok(product);
     }
   ),
 
-
-  // get all Farmer Sold Products of a farmer
-  getFarmerSoldProducts: query([text], Vec(Types.Product), (farmerId) => {
-    const products = productsStorage.values();
-    return products.filter(
-      (product) => product.farmerSold && product.owner === farmerId
-    );
-  }),
-
-  // function to Update Farmer Rating based on the product sold have a Condition of rating eg 1-5
-  updateFarmerRating: update(
+  // Function to get graded items for the item owner
+  getGradedItemsForOwner: query(
     [text],
-    Result(Types.Farmer, Types.Message),
-    (farmerId) => {
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${farmerId} not found` });
+    Result(Vec(Types.Item), Types.Message),
+    (ownerId) => {
+      try {
+        // Validate the ownerId input
+        if (!ownerId || typeof ownerId !== "string") {
+          return Err({
+            InvalidPayload: "Owner ID must be a non-empty string.",
+          });
+        }
+
+        // Fetch all items
+        const items = itemsStorage.values();
+
+        // Filter items based on status and owner
+        const filteredItems = items.filter(
+          (item) => item.status === "Graded" && item.owner === ownerId
+        );
+
+        // Check if any items are found
+        if (filteredItems.length === 0) {
+          return Err({
+            NotFound: `No graded items found for owner ID: ${ownerId}.`,
+          });
+        }
+
+        // Return the filtered items
+        return Ok(filteredItems);
+      } catch (error) {
+        // Catch unexpected errors and return an appropriate error message
+        return Err({
+          NotFound: `An unexpected error occurred.`,
+        });
       }
-      const farmer = farmerOpt.Some;
-      const products = productsStorage.values();
-      const farmerSoldProducts = products.filter(
-        (product) => product.farmerSold && product.owner === farmerId
-      );
-      const count = BigInt(farmerSoldProducts.length);
-      if (count > 10n) {
-        farmer.farmerRating = 5n;
-      } else if (count > 5n) {
-        farmer.farmerRating = 4n;
-      } else if (count > 3n) {
-        farmer.farmerRating = 3n;
-      } else if (count > 1n) {
-        farmer.farmerRating = 2n;
-      } else if (count > 0n) {
-        farmer.farmerRating = 1n;
-      }
-      farmersStorage.insert(farmer.id, farmer);
-      return Ok(farmer);
     }
   ),
 
-  // function to add Certifications to a farmer
-  addCertification: update(
-    [text, text],
-    Result(Types.Farmer, Types.Message),
-    (farmerId, certification) => {
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({ NotFound: `farmer with id=${farmerId} not found` });
+  // Function to get packaged items for the item owner
+  getPackagedItemsForOwner: query(
+    [text],
+    Result(Vec(Types.Item), Types.Message),
+    (ownerId) => {
+      try {
+        // Validate the ownerId input
+        if (!ownerId || typeof ownerId !== "string") {
+          return Err({
+            InvalidPayload: "Owner ID must be a non-empty string.",
+          });
+        }
+
+        // Fetch all items
+        const items = itemsStorage.values();
+
+        // Filter items based on status and owner
+        const filteredItems = items.filter(
+          (item) => item.packaged && item.owner === ownerId && item.status === "Packaged"
+        );
+
+        // Check if any items are found
+        if (filteredItems.length === 0) {
+          return Err({
+            NotFound: `No packaged items found for owner ID: ${ownerId}.`,
+          });
+        }
+
+        // Return the filtered items
+        return Ok(filteredItems);
+      } catch (error) {
+        // Catch unexpected errors and return an appropriate error message
+        return Err({
+          NotFound: `An unexpected error occurred.`,
+        });
       }
-      const farmer = farmerOpt.Some;
-      farmer.certification.push(certification);
-      farmersStorage.insert(farmer.id, farmer);
-      return Ok(farmer);
     }
   ),
 
-  // ** End of Farmer Functions **
+  // ** End of Item Functions **
 
   // ** Start of Vehicle Functions **
-
   // function to create vehicle using VehiclePayload
   createVehicle: update(
     [Types.VehiclePayload, text],
     Result(Types.Vehicle, Types.Message),
-    (payload,distributorId) => {
+    (payload, distributorId) => {
       // Check if the payload is a valid object
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
@@ -451,9 +557,13 @@ export default Canister({
     }
   ),
 
-  // function to get all vehicles
-  getAllVehicles: query([], Vec(Types.Vehicle), () => {
-    return vehiclesStorage.values();
+  // function to get all vehicles with error handling
+  getAllVehicles: query([], Result(Vec(Types.Vehicle), Types.Message), () => {
+    const vehicles = vehiclesStorage.values();
+    if (vehicles.length === 0) {
+      return Err({ NotFound: "No vehicles found" });
+    }
+    return Ok(vehicles);
   }),
 
   // function to get vehicle by id
@@ -470,6 +580,10 @@ export default Canister({
     [text, Types.VehiclePayload],
     Result(Types.Vehicle, Types.Message),
     (id, payload) => {
+      // Check if the payload is a valid object
+      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
+        return Err({ NotFound: "invalid payload" });
+      }
       const vehicleOpt = vehiclesStorage.get(id);
       if ("None" in vehicleOpt) {
         return Err({ NotFound: `vehicle with id=${id} not found` });
@@ -487,19 +601,25 @@ export default Canister({
   // function to get all vehicles created by a distributor company
   getVehiclesByDistributorCompany: query(
     [text],
-    Vec(Types.Vehicle),
+    Result(Vec(Types.Vehicle), Types.Message),
     (companyId) => {
       const vehicles = vehiclesStorage.values();
-      return vehicles.filter(
+      const filteredVehicles = vehicles.filter(
         (vehicle) => vehicle.owner === companyId
       );
+      if (filteredVehicles.length === 0) {
+        return Err({
+          NotFound: `No vehicles found for distributor company with ID: ${companyId}.`,
+        });
+      }
+      return Ok(filteredVehicles);
     }
   ),
 
   // ** End of Vehicle Functions **
 
   // **Start of Driver Functions**
-  
+
   // function to create driver using DriverPayload
   createDriver: update(
     [Types.DriverPayload],
@@ -513,11 +633,11 @@ export default Canister({
       const driver = {
         id: uuidv4(),
         owner: ic.caller(),
-        driverRating: 0n,
-        assignedCompany: false,
-        driverStatus: "Active",
         qualifications: [],
         assignedVehicle: None,
+        assignedCompany: false,
+        driverRating: 0n,
+        driverStatus: "Active",
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -526,9 +646,13 @@ export default Canister({
     }
   ),
 
-  // function to get all drivers
-  getAllDrivers: query([], Vec(Types.Driver), () => {
-    return driversStorage.values();
+  // functions to get all drivers with error handling
+  getAllDrivers: query([], Result(Vec(Types.Driver), Types.Message), () => {
+    const drivers = driversStorage.values();
+    if (drivers.length === 0) {
+      return Err({ NotFound: "No drivers found" });
+    }
+    return Ok(drivers);
   }),
 
   // function to get driver by id
@@ -538,6 +662,29 @@ export default Canister({
       return Err({ NotFound: `driver with id=${id} not found` });
     }
     return Ok(driverOpt.Some);
+  }),
+
+  // function to get driver with the same owner as ic.caller()
+  getDriverByOwner: query([], Result(Types.Driver, Types.Message), () => {
+    const driverOpt = driversStorage
+      .values()
+      .find((driver) => driver.owner.toText() === ic.caller().toText());
+    if (!driverOpt) {
+      return Err({ NotFound: `driver with owner=${ic.caller()} not found` });
+    }
+    return Ok(driverOpt);
+  }),
+
+  // function to get driver by owner using filter
+  getDriverByOwnerFilter: query([], Result(Types.Driver, Types.Message), () => {
+    const driverOpt = driversStorage
+      .values()
+      .filter((driver) => driver.owner.toText() === ic.caller().toText());
+    if (driverOpt.length === 0) {
+      return Err({ NotFound: `No driver found for owner: ${ic.caller()}` });
+    }
+
+    return Ok(driverOpt[0]);
   }),
 
   // function to update driver
@@ -596,6 +743,50 @@ export default Canister({
     }
   ),
 
+  // get driver active delivery
+  getDriverActiveDelivery: query(
+    [text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (driverId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      const deliveryDetailsList = deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.driverId.Some === driverId &&
+          deliveryDetail.deliveryStatus === "Accepted"
+      );
+
+      if (deliveryDetailsList.length === 0) {
+        return Err({
+          NotFound: `driver with id=${driverId} has no active delivery`,
+        });
+      }
+
+      return Ok(deliveryDetailsList[0]);
+    }
+  ),
+
+  // function to get driver Complete Delivery
+  getDriverCompleteDelivery: query(
+    [text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (driverId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      const deliveryDetailsList = deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.driverId.Some === driverId &&
+          deliveryDetail.deliveryStatus === "Completed"
+      );
+
+      if (deliveryDetailsList.length === 0) {
+        return Err({
+          NotFound: `driver with id=${driverId} has no complete delivery`,
+        });
+      }
+
+      return Ok(deliveryDetailsList[0]);
+    }
+  ),
+
   // **End of Driver Functions**
 
   // **Start of Distributors Company Functions**
@@ -615,19 +806,30 @@ export default Canister({
         owner: ic.caller(),
         drivers: [],
         transportationFleet: [],
-        completeproductsDistribution: [],
+        completeItemsDistribution: [],
         ...payload,
       };
       // Insert the event into the eventsStorage
-      distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
+      distributorsCompanyStorage.insert(
+        distributorCompany.id,
+        distributorCompany
+      );
       return Ok(distributorCompany);
     }
   ),
 
-  // function to get all distributor companies
-  getAllDistributorsCompanies: query([], Vec(Types.DistributorsCompany), () => {
-    return distributorsCompanyStorage.values();
-  }),
+  // function to get all distributor companies with error handling
+  getAllDistributorsCompany: query(
+    [],
+    Result(Vec(Types.DistributorsCompany), Types.Message),
+    () => {
+      const distributorCompanies = distributorsCompanyStorage.values();
+      if (distributorCompanies.length === 0) {
+        return Err({ NotFound: "No distributor companies found" });
+      }
+      return Ok(distributorCompanies);
+    }
+  ),
 
   // function to get distributor company by id
   getDistributorsCompany: query(
@@ -639,6 +841,27 @@ export default Canister({
         return Err({ NotFound: `distributor company with id=${id} not found` });
       }
       return Ok(distributorCompanyOpt.Some);
+    }
+  ),
+
+  // function to get distributor company by owner using filter
+  getDistributorsCompanyByOwner: query(
+    [],
+    Result(Types.DistributorsCompany, Types.Message),
+    () => {
+      const distributorCompanyOpt = distributorsCompanyStorage
+        .values()
+        .filter(
+          (distributorCompany) =>
+            distributorCompany.owner.toText() === ic.caller().toText()
+        );
+      if (distributorCompanyOpt.length === 0) {
+        return Err({
+          NotFound: `No distributor company found for owner: ${ic.caller()}`,
+        });
+      }
+
+      return Ok(distributorCompanyOpt[0]);
     }
   ),
 
@@ -656,7 +879,10 @@ export default Canister({
         ...distributorCompany,
         ...payload,
       };
-      distributorsCompanyStorage.insert(distributorCompany.id, updatedDistributorCompany);
+      distributorsCompanyStorage.insert(
+        distributorCompany.id,
+        updatedDistributorCompany
+      );
       return Ok(updatedDistributorCompany);
     }
   ),
@@ -683,7 +909,10 @@ export default Canister({
 
       // Add driver to distributor company
       distributorCompany.drivers.push(driver);
-      distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
+      distributorsCompanyStorage.insert(
+        distributorCompany.id,
+        distributorCompany
+      );
       driversStorage.insert(driver.id, driver);
       return Ok(distributorCompany);
     }
@@ -720,7 +949,10 @@ export default Canister({
       }
       const vehicle = vehicleOpt.Some;
       distributorCompany.transportationFleet.push(vehicle);
-      distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
+      distributorsCompanyStorage.insert(
+        distributorCompany.id,
+        distributorCompany
+      );
       return Ok(distributorCompany);
     }
   ),
@@ -738,13 +970,11 @@ export default Canister({
       return distributorCompany.transportationFleet;
     }
   ),
-
-  // function to add product category to distributor company with product.distributionSuccesful
-  // Marks the product as distributed
-  addCompleteproductsDistributionToDistributorCompany: update(
+  // function to add addCompleteItemsDistributionToDistributorCompany
+  addCompleteItemsDistributionToDistributorCompany: update(
     [text, text],
     Result(Types.DistributorsCompany, Types.Message),
-    (companyId, productId) => {
+    (companyId, itemId) => {
       const distributorCompanyOpt = distributorsCompanyStorage.get(companyId);
       if ("None" in distributorCompanyOpt) {
         return Err({
@@ -752,135 +982,271 @@ export default Canister({
         });
       }
       const distributorCompany = distributorCompanyOpt.Some;
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
       }
-      const product = productOpt.Some;
-      product.distributionSuccesful = true;
-      distributorCompany.completeproductsDistribution.push(product);
+      const item = itemOpt.Some;
+      item.distributionSuccesful = true;
+      distributorCompany.completeItemsDistribution.push(item);
       distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
       return Ok(distributorCompany);
     }
   ),
 
-  // function to get CompleteproductsDistribution in a distributor company
-  getCompleteproductsDistributionInDistributorCompany: query(
+  // getCompleteItemsDistributionInDistributorCompany
+  getCompleteItemsDistributionInDistributorCompany: query(
     [text],
-    Vec(Types.Product),
+    Vec(Types.Item),
     (companyId) => {
       const distributorCompanyOpt = distributorsCompanyStorage.get(companyId);
       if ("None" in distributorCompanyOpt) {
         return [];
       }
       const distributorCompany = distributorCompanyOpt.Some;
-      return distributorCompany.completeproductsDistribution;
+      return distributorCompany.completeItemsDistribution;
     }
   ),
 
+
+
   // **End of Distributors Company Functions**
 
-  // **Start of Processing Company Functions**
+  // **Start of Warehouse Manager Functions**
 
-  // function to create processing company using ProcessingCompanyPayload
-  createProcessingCompany: update(
-    [Types.ProcessingCompanyPayload],
-    Result(Types.ProcessingCompany, Types.Message),
+  // function to create warehouse manager using WarehouseManagerPayload
+  createWarehouseManager: update(
+    [Types.WarehouseManagerPayload],
+    Result(Types.WarehouseManager, Types.Message),
     (payload) => {
       // Check if the payload is a valid object
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
       // Create an event with a unique id generated using UUID v4
-      const processingCompany = {
+      const warehouseManager = {
         id: uuidv4(),
         owner: ic.caller(),
-        productsSuccesfulProcessing: [],
+        role: "Warehouse Manager",
+        status: "Active",
+        itemSuccesfullWarehoused: [],
         ...payload,
       };
       // Insert the event into the eventsStorage
-      processingCompanyStorage.insert(processingCompany.id, processingCompany);
-      return Ok(processingCompany);
+      warehouseManagerStorage.insert(warehouseManager.id, warehouseManager);
+      return Ok(warehouseManager);
     }
   ),
 
-  // function to get all processing companies
-  getAllProcessingCompanies: query([], Vec(Types.ProcessingCompany), () => {
-    return processingCompanyStorage.values();
-  }),
+  // function to get all warehouse managers with error handling
+  getAllWarehouseManagers: query(
+    [],
+    Result(Vec(Types.WarehouseManager), Types.Message),
+    () => {
+      const warehouseManagers = warehouseManagerStorage.values();
+      if (warehouseManagers.length === 0) {
+        return Err({ NotFound: "No warehouse managers found" });
+      }
+      return Ok(warehouseManagers);
+    }
+  ),
 
-  // function to get processing company by id
-  getProcessingCompany: query(
+  // function to get warehouse manager by id
+  getWarehouseManager: query(
     [text],
-    Result(Types.ProcessingCompany, Types.Message),
+    Result(Types.WarehouseManager, Types.Message),
     (id) => {
-      const processingCompanyOpt = processingCompanyStorage.get(id);
-      if ("None" in processingCompanyOpt) {
-        return Err({ NotFound: `processing company with id=${id} not found` });
+      const warehouseManagerOpt = warehouseManagerStorage.get(id);
+      if ("None" in warehouseManagerOpt) {
+        return Err({ NotFound: `warehouse manager with id=${id} not found` });
       }
-      return Ok(processingCompanyOpt.Some);
+      return Ok(warehouseManagerOpt.Some);
     }
   ),
 
-  // function to update processing company
-  updateProcessingCompany: update(
-    [text, Types.ProcessingCompanyPayload],
-    Result(Types.ProcessingCompany, Types.Message),
-    (id, payload) => {
-      const processingCompanyOpt = processingCompanyStorage.get(id);
-      if ("None" in processingCompanyOpt) {
-        return Err({ NotFound: `processing company with id=${id} not found` });
-      }
-      const processingCompany = processingCompanyOpt.Some;
-      const updatedProcessingCompany = {
-        ...processingCompany,
-        ...payload,
-      };
-      processingCompanyStorage.insert(processingCompany.id, updatedProcessingCompany);
-      return Ok(updatedProcessingCompany);
-    }
-  ),
-
-  // function to add productsSuccesfulProcessing to processing company
-  // Marks the product as processed
-  addProductsSuccesfulProcessing: update(
-    [text, text],
-    Result(Types.ProcessingCompany, Types.Message),
-    (companyId, productId) => {
-      const processingCompanyOpt = processingCompanyStorage.get(companyId);
-      if ("None" in processingCompanyOpt) {
+  // function to get warehouse manager by owner using filter
+  getWarehouseManagerByOwner: query(
+    [],
+    Result(Types.WarehouseManager, Types.Message),
+    () => {
+      const warehouseManagerOpt = warehouseManagerStorage
+        .values()
+        .filter(
+          (warehouseManager) =>
+            warehouseManager.owner.toText() === ic.caller().toText()
+        );
+      if (warehouseManagerOpt.length === 0) {
         return Err({
-          NotFound: `processing company with id=${companyId} not found`,
+          NotFound: `No warehouse manager found for owner: ${ic.caller()}`,
         });
       }
-      const processingCompany = processingCompanyOpt.Some;
-      const productOpt = productsStorage.get(productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${productId} not found` });
-      }
-      const product = productOpt.Some;
-      product.processingSuccesful = true;
-      processingCompany.productsCategories.push(product);
-      processingCompanyStorage.insert(processingCompany.id, processingCompany);
-      return Ok(processingCompany);
+
+      return Ok(warehouseManagerOpt[0]);
     }
   ),
 
-  // function to get productsSuccesfulProcessing in a processing company
-  getProductsSuccesfulProcessingInProcessingCompany: query(
+  // function to update warehouse manager
+  updateWarehouseManager: update(
+    [text, Types.WarehouseManagerPayload],
+    Result(Types.WarehouseManager, Types.Message),
+    (id, payload) => {
+      const warehouseManagerOpt = warehouseManagerStorage.get(id);
+      if ("None" in warehouseManagerOpt) {
+        return Err({ NotFound: `warehouse manager with id=${id} not found` });
+      }
+      const warehouseManager = warehouseManagerOpt.Some;
+      const updatedWarehouseManager = {
+        ...warehouseManager,
+        ...payload,
+      };
+      warehouseManagerStorage.insert(
+        warehouseManager.id,
+        updatedWarehouseManager
+      );
+      return Ok(updatedWarehouseManager);
+    }
+  ),
+
+  // function to add itemsuccessfully warehoused to warehouse manager
+  addItemsSuccesfulWarehousing: update(
+    [text, text],
+    Result(Types.WarehouseManager, Types.Message),
+    (managerId, itemId) => {
+      const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `warehouse manager with id=${managerId} not found`,
+        });
+      }
+      const warehouseManager = warehouseManagerOpt.Some;
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.warehousedSuccesful = true;
+      warehouseManager.itemSuccesfullWarehoused.push(item);
+      warehouseManagerStorage.insert(warehouseManager.id, warehouseManager);
+      return Ok(warehouseManager);
+    }
+  ),
+
+  // function to get items successfully warehoused by warehouse manager
+  getItemsSuccesfulWarehousing: query(
     [text],
-    Vec(Types.Product),
-    (companyId) => {
-      const processingCompanyOpt = processingCompanyStorage.get(companyId);
-      if ("None" in processingCompanyOpt) {
+    Vec(Types.Item),
+    (managerId) => {
+      const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
+      if ("None" in warehouseManagerOpt) {
         return [];
       }
-      const processingCompany = processingCompanyOpt.Some;
-      return processingCompany.productsSuccesfulProcessing;
+      const warehouseManager = warehouseManagerOpt.Some;
+      return warehouseManager.itemSuccesfullWarehoused;
     }
   ),
 
-  // **End of Processing Company Functions**
+
+
+  // **End of Warehouse Manager Functions**
+
+  // **Start of Field Worker Functions**
+
+  // function to create field worker using FieldWorkerPayload
+  createFieldWorker: update(
+    [Types.FieldWorkerPayload],
+    Result(Types.FieldWorker, Types.Message),
+    (payload) => {
+      // Check if the payload is a valid object
+      if (typeof payload !== "object" || Object.keys(payload).length === 0) {
+        return Err({ NotFound: "invalid payload" });
+      }
+
+      // Check if the associated driver exists
+      const driverOpt = driversStorage.get(payload.associated_driver);
+
+      if ("None" in driverOpt) {
+        return Err({
+          NotFound: `driver with id=${payload.associated_driver} not found`,
+        });
+      }
+
+      // Create an event with a unique id generated using UUID v4
+      const fieldWorker = {
+        id: uuidv4(),
+        ...payload,
+      };
+      // Insert the event into the eventsStorage
+      fieldWorkerStorage.insert(fieldWorker.id, fieldWorker);
+      return Ok(fieldWorker);
+    }
+  ),
+
+  // function to get all field workers with error handling
+  getAllFieldWorkers: query(
+    [],
+    Result(Vec(Types.FieldWorker), Types.Message),
+    () => {
+      const fieldWorkers = fieldWorkerStorage.values();
+      if (fieldWorkers.length === 0) {
+        return Err({ NotFound: "No field workers found" });
+      }
+      return Ok(fieldWorkers);
+    }
+  ),
+
+  // function to get field worker by id
+  getFieldWorker: query(
+    [text],
+    Result(Types.FieldWorker, Types.Message),
+    (id) => {
+      const fieldWorkerOpt = fieldWorkerStorage.get(id);
+      if ("None" in fieldWorkerOpt) {
+        return Err({ NotFound: `field worker with id=${id} not found` });
+      }
+      return Ok(fieldWorkerOpt.Some);
+    }
+  ),
+
+  // function to get field worker by owner using filter
+  getFieldWorkerByOwner: query(
+    [],
+    Result(Types.FieldWorker, Types.Message),
+    () => {
+      const fieldWorkerOpt = fieldWorkerStorage
+        .values()
+        .filter(
+          (fieldWorker) => fieldWorker.owner.toText() === ic.caller().toText()
+        );
+      if (fieldWorkerOpt.length === 0) {
+        return Err({
+          NotFound: `No field worker found for owner: ${ic.caller()}`,
+        });
+      }
+
+      return Ok(fieldWorkerOpt[0]);
+    }
+  ),
+
+  // function to update field worker
+  updateFieldWorker: update(
+    [text, Types.FieldWorkerPayload],
+    Result(Types.FieldWorker, Types.Message),
+    (id, payload) => {
+      const fieldWorkerOpt = fieldWorkerStorage.get(id);
+      if ("None" in fieldWorkerOpt) {
+        return Err({ NotFound: `field worker with id=${id} not found` });
+      }
+      const fieldWorker = fieldWorkerOpt.Some;
+      const updatedFieldWorker = {
+        ...fieldWorker,
+        ...payload,
+      };
+      fieldWorkerStorage.insert(fieldWorker.id, updatedFieldWorker);
+      return Ok(updatedFieldWorker);
+    }
+  ),
+
+  // **End of Field Worker Functions**
 
   // **Start of Delivery Details Functions**
 
@@ -896,9 +1262,9 @@ export default Canister({
       // Create an event with a unique id generated using UUID v4
       const deliveryDetails = {
         id: uuidv4(),
-        deliveryStatus: "New",
         driverId: None,
         deliveredDate: None,
+        deliveryStatus: "Pending",
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -907,213 +1273,17 @@ export default Canister({
     }
   ),
 
-  // Add a product to delivery details
-  // addProductToDeliveryDetails: update(
-  //   [text, text],
-  //   Result(Types.DeliveryDetails, Types.Message),
-  //   (deliveryId, productId) => {
-  //     const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-  //     if ("None" in deliveryDetailsOpt) {
-  //       return Err({
-  //         NotFound: `delivery details with id=${deliveryId} not found`,
-  //       });
-  //     }
-  //     const deliveryDetails = deliveryDetailsOpt.Some;
-  //     const productOpt = productsStorage.get(productId);
-  //     if ("None" in productOpt) {
-  //       return Err({ NotFound: `product with id=${productId} not found` });
-  //     }
-  //     const product = productOpt.Some;
-  //     deliveryDetails.product = Some(product);
-  //     deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-  //     return Ok(deliveryDetails);
-  //   }
-  // ),
-
-  // Add a driverId to delivery details
-  addDriverIdToDeliveryDetails: update(
-    [text, text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (deliveryId, driverId) => {
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
-        });
+  // function to get all delivery details with error handling
+  getAllDeliveryDetails: query(
+    [],
+    Result(Vec(Types.DeliveryDetails), Types.Message),
+    () => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      if (deliveryDetails.length === 0) {
+        return Err({ NotFound: "No delivery details found" });
       }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      const driverOpt = driversStorage.get(driverId);
-      if ("None" in driverOpt) {
-        return Err({ NotFound: `driver with id=${driverId} not found` });
-      }
-     
-      deliveryDetails.driverId = Some(driverId);
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
       return Ok(deliveryDetails);
     }
-  ),
-
-  // Update on delivery date of delivery details
-  updateDeliveryDate: update(
-    [text, text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (deliveryId, date) => {
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
-        });
-      }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveredDate = Some(date);
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-      return Ok(deliveryDetails);
-    }
-  ),
-
-  // function to get all delivery details
-  getAllDeliveryDetails: query([], Vec(Types.DeliveryDetails), () => {
-    return deliveryDetailsStorage.values();
-  }),
-
-  // deliveryStatus mark as picked
-  markDeliveryDetailsAsPicked: update(
-    [text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (deliveryId) => {
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
-        });
-      }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveryStatus = "Picked";
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-      return Ok(deliveryDetails);
-    }
-  ),
-
-  // mark as Completed
-  markDeliveryDetailsAsCompleted: update(
-    [text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (deliveryId) => {
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
-        });
-      }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveryStatus = "Completed";
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-      return Ok(deliveryDetails);
-    }
-  ),
-
-  // get Delivery that are completed for a distributor company
-  getCompletedDeliveryDetailsForDistributorCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Completed" &&
-          deliveryDetail.distributorsId === companyId
-      );
-    }
-  ),
-
-  // get Delivery Tender using deliveryDetailsId for a distributor company having check tender ACcepted == true
-  getTenderForDeliveryDetailsForDistributorCompany: query(
-    [text,text],
-    Result(Types.DeliveryTender, Types.Message),
-    (companyId,deliveryDetailsId) => {
-      // get all tenders
-      const deliveryTender = deliveryTenderStorage.values();
-      console.log("deliveryTender",deliveryTender)
-      // for loop to check if the tender is accepted and the distributorId is the same as the companyId && deliveryDetailsId is the same as the deliveryDetailsId
-      for(let i = 0; i < deliveryTender.length; i++){
-        if(deliveryTender[i].accepted && deliveryTender[i].distributorsId === companyId && deliveryTender[i].DeliveryDetailsId === deliveryDetailsId){
-          console.log("found",deliveryTender[i])
-          return Ok(deliveryTender[i]);
-        }
-      }
-      return Err({ NotFound: `delivery tender with id=${deliveryDetailsId} not found` });
-    }
-  ),
-
-  // get Tender for Processing Company
-  getTenderForDeliveryDetailsForProcessingCompany: query(
-    [text,text],
-    Result(Types.DeliveryTender, Types.Message),
-    (companyId,deliveryDetailsId) => {
-      // get all tenders
-      const deliveryTender = deliveryTenderStorage.values();
-      console.log("deliveryTender",deliveryTender)
-      // for loop to check if the tender is accepted and the distributorId is the same as the companyId && delivery
-      for(let i = 0; i < deliveryTender.length; i++){
-        if(deliveryTender[i].accepted && deliveryTender[i].processorsId === companyId && deliveryTender[i].DeliveryDetailsId === deliveryDetailsId){
-          console.log("found",deliveryTender[i])
-          return Ok(deliveryTender[i]);
-        }
-      }
-      return Err({ NotFound: `delivery tender with id=${deliveryDetailsId} not found` });
-    }
-  ),
-
-  // get Delivery that are completed for a processing company
-  getCompletedDeliveryDetailsForProcessingCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Completed" &&
-          deliveryDetail.processorsId === companyId
-      );
-    }
-  ),
-
-  // get Delivery that are completed for a driver
-  getCompletedDeliveryDetailsForDriver: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (driverId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Completed" &&
-          deliveryDetail.driverId.Some === driverId
-      );
-    }
-  ),
-
-  //  get delivery details that are picked up for delivery details assigned to a driver
-  getDeliveryDetailsPickedUp: query([text], Vec(Types.DeliveryDetails), (driverId) => {
-    const deliveryDetails = deliveryDetailsStorage.values();
-    return deliveryDetails.filter(
-      (deliveryDetail) =>
-        deliveryDetail.deliveryStatus === "Picked" &&
-        deliveryDetail.driverId.Some === driverId
-    );
-  }),
-
-  // getDeliveryDetailsPickedUp for a distributor company
-  getDeliveryDetailsPickedUpForDistributorCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Picked" &&
-          deliveryDetail.distributorsId === companyId
-      );
-    } 
   ),
 
   // function to get delivery details by id
@@ -1148,6 +1318,206 @@ export default Canister({
     }
   ),
 
+  // get Delivery that are completed for a distributor company
+  getCompletedDeliveryDetailsForDistributorCompany: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (companyId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Completed" &&
+          deliveryDetail.distributorsId === companyId
+      );
+    }
+  ),
+
+  // get Delivery Tender using deliveryDetailsId for a distributor company having check tender ACcepted == true
+  getTenderForDeliveryDetailsForDistributorCompany: query(
+    [text, text],
+    Result(Types.DeliveryTender, Types.Message),
+    (companyId, deliveryDetailsId) => {
+      // get all tenders
+      const deliveryTender = deliveryTenderStorage.values();
+      console.log("deliveryTender", deliveryTender);
+      // for loop to check if the tender is accepted and the distributorId is the same as the companyId && deliveryDetailsId is the same as the deliveryDetailsId
+      for (let i = 0; i < deliveryTender.length; i++) {
+        if (
+          deliveryTender[i].accepted &&
+          deliveryTender[i].distributorsId === companyId &&
+          deliveryTender[i].DeliveryDetailsId === deliveryDetailsId
+        ) {
+          console.log("found", deliveryTender[i]);
+          return Ok(deliveryTender[i]);
+        }
+      }
+      return Err({
+        NotFound: `delivery tender with id=${deliveryDetailsId} not found`,
+      });
+    }
+  ),
+
+  // get Delivery Tender using deliveryDetailsId for a distributor company 
+  // getTenderForDeliveryDetailsForWarehouseManager
+  getTenderForDeliveryDetailsForWarehouseManager: query(
+    [text, text],
+    Result(Types.DeliveryTender, Types.Message),
+    (managerId, deliveryDetailsId) => {
+      // get all tenders
+      const deliveryTender = deliveryTenderStorage.values();
+      console.log("deliveryTender", deliveryTender);
+      // for loop to check if the tender is accepted and the distributorId is the same as the companyId && delivery
+      // DetailsId is the same as the deliveryDetailsId
+      for (let i = 0; i < deliveryTender.length; i++) {
+        if (
+          deliveryTender[i].accepted &&
+          deliveryTender[i].warehouseManagerId === managerId &&
+          deliveryTender[i].DeliveryDetailsId === deliveryDetailsId
+        ) {
+          console.log("found", deliveryTender[i]);
+          return Ok(deliveryTender[i]);
+        }
+      }
+      return Err({
+        NotFound: `delivery tender with id=${deliveryDetailsId} not found`,
+      });
+    } 
+  ),
+
+    // Add a driverId to delivery details
+    addDriverIdToDeliveryDetails: update(
+      [text, text],
+      Result(Types.DeliveryDetails, Types.Message),
+      (deliveryId, driverId) => {
+        const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+        if ("None" in deliveryDetailsOpt) {
+          return Err({
+            NotFound: `delivery details with id=${deliveryId} not found`,
+          });
+        }
+        const deliveryDetails = deliveryDetailsOpt.Some;
+        const driverOpt = driversStorage.get(driverId);
+        if ("None" in driverOpt) {
+          return Err({ NotFound: `driver with id=${driverId} not found` });
+        }
+       
+        deliveryDetails.driverId = Some(driverId);
+        deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+        return Ok(deliveryDetails);
+      }
+    ),
+
+
+  // deliveryStatus mark as picked
+  markDeliveryDetailsAsPicked: update(
+    [text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (deliveryId) => {
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+      if ("None" in deliveryDetailsOpt) {
+        return Err({
+          NotFound: `delivery details with id=${deliveryId} not found`,
+        });
+      }
+      const deliveryDetails = deliveryDetailsOpt.Some;
+      deliveryDetails.deliveryStatus = "Picked";
+      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+      return Ok(deliveryDetails);
+    }
+  ),
+
+  // function to mark delivery as Completed
+  markDeliveryDetailsAsCompleted: update(
+    [text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (deliveryId) => {
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+      if ("None" in deliveryDetailsOpt) {
+        return Err({
+          NotFound: `delivery details with id=${deliveryId} not found`,
+        });
+      }
+      const deliveryDetails = deliveryDetailsOpt.Some;
+      deliveryDetails.deliveryStatus = "Completed";
+      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+      return Ok(deliveryDetails);
+    }
+  ),
+
+  // Update on delivery date of delivery details
+  updateDeliveryDate: update(
+    [text, text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (deliveryId, date) => {
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+      if ("None" in deliveryDetailsOpt) {
+        return Err({
+          NotFound: `delivery details with id=${deliveryId} not found`,
+        });
+      }
+      const deliveryDetails = deliveryDetailsOpt.Some;
+      deliveryDetails.deliveredDate = Some(date);
+      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+      return Ok(deliveryDetails);
+    }
+  ),
+
+  // get Delivery that are completed for a driver
+  getCompletedDeliveryDetailsForDriver: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (driverId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Completed" &&
+          deliveryDetail.driverId.Some === driverId
+      );
+    }
+  ),
+
+  // get Delivery that are completed for a warehouse manager
+  getCompletedDeliveryDetailsForWarehouseManager: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (managerId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Completed" &&
+          deliveryDetail.warehouseManagerId === managerId
+      );
+    }
+  ),
+
+  //  get delivery details that are picked up for delivery details assigned to a driver
+  getDeliveryDetailsPickedUp: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (driverId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Picked" &&
+          deliveryDetail.driverId.Some === driverId
+      );
+    }
+  ),
+
+  // getDeliveryDetailsPickedUp for a distributor company
+  getDeliveryDetailsPickedUpForDistributorCompany: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (companyId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Picked" &&
+          deliveryDetail.distributorsId === companyId
+      );
+    }
+  ),
+
   // get active delivery with status Accepted and driver assigned == Null
   getActiveDeliveryDetails: query([], Vec(Types.DeliveryDetails), () => {
     const deliveryDetails = deliveryDetailsStorage.values();
@@ -1172,62 +1542,34 @@ export default Canister({
     }
   ),
 
-  // get delivery details with status New in a processing company
-  getNewDeliveryDetailsInProcessingCompany: query(
+  // get delivery details with status new in a warehouse manager
+  getNewDeliveryDetailsForWarehouseManager: query(
     [text],
     Vec(Types.DeliveryDetails),
-    (companyId) => {
+    (managerId) => {
       const deliveryDetails = deliveryDetailsStorage.values();
       return deliveryDetails.filter(
         (deliveryDetail) =>
           deliveryDetail.deliveryStatus === "New" &&
-          deliveryDetail.processorsId === companyId
+          deliveryDetail.warehouseManagerId === managerId
       );
     }
   ),
 
-  // get delivery details with status Tendered in a processing company
-  getTenderedDeliveryDetailsInProcessingCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Tendered" &&
-          deliveryDetail.processorsId === companyId
-      );
-    }
-  ),
-
-  // get delivery details with status Tendered in a distributors company
-  getTenderedDeliveryDetailsInDistributorsCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Tendered" &&
-          deliveryDetail.distributorsId === companyId
-      );
-    }
-  ),
-
-  // get delivery details with status Completed in a processing company
-  getCompletedDeliveryDetailsInProcessingCompany: query(
-    [text],
-    Vec(Types.DeliveryDetails),
-    (companyId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.deliveryStatus === "Completed" &&
-          deliveryDetail.processorsId === companyId
-      );
-    }
-  ),
-
+    // get delivery details with status Tendered in a warehouse manager
+    getTenderedDeliveryDetailsForWarehouseManager: query(
+      [text],
+      Vec(Types.DeliveryDetails),
+      (managerId) => {
+        const deliveryDetails = deliveryDetailsStorage.values();
+        return deliveryDetails.filter(
+          (deliveryDetail) =>
+            deliveryDetail.deliveryStatus === "Tendered" &&
+            deliveryDetail.warehouseManagerId === managerId
+        );
+      }
+    ),
+ 
   // get Delivery details assigned to a driver
   getDeliveryDetailsAssignedToDriver: query(
     [text],
@@ -1235,8 +1577,7 @@ export default Canister({
     (driverId) => {
       const deliveryDetails = deliveryDetailsStorage.values();
       return deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.driverId.Some === driverId
+        (deliveryDetail) => deliveryDetail.driverId.Some === driverId
       );
     }
   ),
@@ -1248,11 +1589,12 @@ export default Canister({
     (driverId) => {
       const deliveryDetails = deliveryDetailsStorage.values();
       const driverDeliveryDetails = deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.driverId.Some === driverId
+        (deliveryDetail) => deliveryDetail.driverId.Some === driverId
       );
       if (driverDeliveryDetails.length === 0) {
-        return Err({ NotFound: `No delivery details assigned to driver with id=${driverId}` });
+        return Err({
+          NotFound: `No delivery details assigned to driver with id=${driverId}`,
+        });
       }
       return Ok(driverDeliveryDetails[driverDeliveryDetails.length - 1]);
     }
@@ -1286,12 +1628,11 @@ export default Canister({
     }
   ),
 
+  // **End of Delivery Details Functions**
 
-  // ** End of Delivery Details Functions **
+  // **Start of Delivery Tender Functions**
 
-  // ** Start of Delivery Tender Functions **
-
-  // Function to create deliveryTender
+  // function to create delivery tender using DeliveryTenderPayload, initiated by the distributor Company
   createDeliveryTender: update(
     [Types.DeliveryTenderPayload],
     Result(Types.DeliveryTender, Types.Message),
@@ -1307,14 +1648,17 @@ export default Canister({
       // Create an event with a unique id generated using UUID v4
       const deliveryTender = {
         id: uuidv4(),
-        totalCost: totalCost,
         accepted: false,
         ...payload,
       };
 
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(payload.DeliveryDetailsId);
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(
+        payload.DeliveryDetailsId
+      );
       if ("None" in deliveryDetailsOpt) {
-        return Err({ NotFound: `delivery details with id=${payload.DeliveryDetailsId} not found` });
+        return Err({
+          NotFound: `delivery details with id=${payload.DeliveryDetailsId} not found`,
+        });
       }
       const deliveryDetails = deliveryDetailsOpt.Some;
       deliveryDetails.deliveryStatus = "Tendered";
@@ -1325,40 +1669,18 @@ export default Canister({
     }
   ),
 
-  // Function to accept a Tender
-  acceptDeliveryTender: update(
-    [text],
-    Result(Types.DeliveryTender, Types.Message),
-    (tenderId) => {
-      const deliveryTenderOpt = deliveryTenderStorage.get(tenderId);
-      if ("None" in deliveryTenderOpt) {
-        return Err({ NotFound: `delivery tender with id=${tenderId} not found` });
+  // function to get all delivery tenders with error handling
+  getAllDeliveryTenders: query(
+    [],
+    Result(Vec(Types.DeliveryTender), Types.Message),
+    () => {
+      const deliveryTenders = deliveryTenderStorage.values();
+      if (deliveryTenders.length === 0) {
+        return Err({ NotFound: "No delivery tenders found" });
       }
-      const deliveryTender = deliveryTenderOpt.Some;
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryTender.DeliveryDetailsId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({ NotFound: `delivery details with id=${deliveryTender.DeliveryDetailsId} not found` });
-      }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveryStatus = "Accepted";
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-
-      deliveryTender.accepted = true;
-      deliveryTenderStorage.insert(deliveryTender.id, deliveryTender);
-      return Ok(deliveryTender);
+      return Ok(deliveryTenders);
     }
   ),
-
-  // function to get delivery details of a delivery tender that has been accepted
-  getAcceptedDeliveryTenders: query([], Vec(Types.DeliveryTender), () => {
-    const deliveryTenders = deliveryTenderStorage.values();
-    return deliveryTenders.filter((deliveryTender) => deliveryTender.accepted);
-  }),
-
-  // function to get all delivery tenders
-  getAllDeliveryTenders: query([], Vec(Types.DeliveryTender), () => {
-    return deliveryTenderStorage.values();
-  }),
 
   // function to get delivery tender by id
   getDeliveryTender: query(
@@ -1392,14 +1714,59 @@ export default Canister({
     }
   ),
 
-  // function to get all delivery tenders of a processing company
-  getDeliveryTendersOfProcessingCompany: query(
+  // Function for the Warehouse Manager to accept a delivery tender
+  acceptDeliveryTender: update(
+    [text],
+    Result(Types.DeliveryTender, Types.Message),
+    (tenderId) => {
+      const deliveryTenderOpt = deliveryTenderStorage.get(tenderId);
+      if ("None" in deliveryTenderOpt) {
+        return Err({
+          NotFound: `delivery tender with id=${tenderId} not found`,
+        });
+      }
+      const deliveryTender = deliveryTenderOpt.Some;
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(
+        deliveryTender.DeliveryDetailsId
+      );
+      if ("None" in deliveryDetailsOpt) {
+        return Err({
+          NotFound: `delivery details with id=${deliveryTender.DeliveryDetailsId} not found`,
+        });
+      }
+      const deliveryDetails = deliveryDetailsOpt.Some;
+      deliveryDetails.deliveryStatus = "Accepted";
+      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+
+      deliveryTender.accepted = true;
+      deliveryTenderStorage.insert(deliveryTender.id, deliveryTender);
+      return Ok(deliveryTender);
+    }
+  ),
+
+  // function to get delivery details of a delivery tender that has been accepted with error handling
+  getAcceptedDeliveryTender: query(
+    [],
+    Result(Vec(Types.DeliveryTender), Types.Message),
+    () => {
+      const deliveryTenders = deliveryTenderStorage.values();
+      const filteredDeliveryTenders = deliveryTenders.filter(
+        (deliveryTender) => deliveryTender.accepted
+      );
+      if (filteredDeliveryTenders.length === 0) {
+        return Err({ NotFound: "No accepted delivery tenders found" });
+      }
+      return Ok(filteredDeliveryTenders);
+    }
+  ),
+  // function to get all delivery tenders of a warehouseManagerId
+  getDeliveryTendersOfWarehouseManager: query(
     [text],
     Vec(Types.DeliveryTender),
-    (companyId) => {
+    (warehouseManagerId) => {
       const deliveryTenders = deliveryTenderStorage.values();
       return deliveryTenders.filter(
-        (deliveryTender) => deliveryTender.processorsId === companyId
+        (deliveryTender) => deliveryTender.warehouseManagerId === warehouseManagerId
       );
     }
   ),
@@ -1416,390 +1783,419 @@ export default Canister({
     }
   ),
 
-  // ** End of Delivery Tender Functions **
+  // Function to get all Accepted Delivery Tenders for Distributor Company
+  getAcceptedDeliveryTendersForDistributorCompany: query(
+    [text],
+    Vec(Types.DeliveryTender),
+    (companyId) => {
+      const deliveryTenders = deliveryTenderStorage.values();
+      const filteredDeliveryTenders = deliveryTenders.filter(
+        (deliveryTender) =>
+          deliveryTender.accepted && deliveryTender.owner === companyId
+      );
+      if (filteredDeliveryTenders.length === 0) {
+        return [];
+      }
+      return filteredDeliveryTenders;
+    }
+  ),
 
-  // ** Start of Farmer Sales Advert Functions **
+  // get delivery details with status Tendered in a distributors company
+  getTenderedDeliveryDetailsInDistributorsCompany: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (companyId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Tendered" &&
+          deliveryDetail.distributorsId === companyId
+      );
+    }
+  ),
 
-  // function to create farmerSalesAdvert using FarmerSalesAdvertPayload
-  createFarmerSalesAdvert: update(
-    [Types.FarmerSaleAdvertPayload],
-    Result(Types.FarmerSaleAdvert, Types.Message),
+
+  // **End of Delivery Tender Functions**
+
+  // ** Start of Admin Processing Advert Functions **
+
+  // function to create admin processing advert using AdminProcessingAdvertPayload
+  createAdminProcessingAdvert: update(
+    [Types.AdminProcessingAdvertPayload],
+    Result(Types.AdminProcessingAdvert, Types.Message),
     (payload) => {
       // Check if the payload is a valid object
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
       // Create an event with a unique id generated using UUID v4
-      const farmerSalesAdvert = {
+      const adminProcessingAdvert = {
         id: uuidv4(),
         status: "Active",
-        farmerPaid: false,
+        adminPaid: false,
         ...payload,
       };
       // Insert the event into the eventsStorage
-      FarmerSaleAdvertStorage.insert(farmerSalesAdvert.id, farmerSalesAdvert);
-      return Ok(farmerSalesAdvert);
+      adminProcessingAdvertStorage.insert(
+        adminProcessingAdvert.id,
+        adminProcessingAdvert
+      );
+      return Ok(adminProcessingAdvert);
     }
   ),
 
-  // function to get all farmer sales adverts
-  getAllFarmerSalesAdverts: query([], Vec(Types.FarmerSaleAdvert), () => {
-    return FarmerSaleAdvertStorage.values();
-  }),
+  // function to get all admin processing adverts with error handling
+  getAllAdminProcessingAdverts: query(
+    [],
+    Result(Vec(Types.AdminProcessingAdvert), Types.Message),
+    () => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      if (adminProcessingAdverts.length === 0) {
+        return Err({ NotFound: "No admin processing adverts found" });
+      }
+      return Ok(adminProcessingAdverts);
+    }
+  ),
 
-  // function to get farmer sales advert by id
-  getFarmerSalesAdvert: query(
+  // function to get admin processing advert by id
+  getAdminProcessingAdvert: query(
     [text],
-    Result(Types.FarmerSaleAdvert, Types.Message),
+    Result(Types.AdminProcessingAdvert, Types.Message),
     (id) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(id);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({ NotFound: `farmer sales advert with id=${id} not found` });
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(id);
+      if ("None" in adminProcessingAdvertOpt) {
+        return Err({
+          NotFound: `admin processing advert with id=${id} not found`,
+        });
       }
-      return Ok(farmerSalesAdvertOpt.Some);
+      return Ok(adminProcessingAdvertOpt.Some);
     }
   ),
 
-  // function to update farmer sales advert
-  updateFarmerSalesAdvert: update(
-    [text, Types.FarmerSaleAdvertPayload],
-    Result(Types.FarmerSaleAdvert, Types.Message),
+  // function to update admin processing advert
+  updateAdminProcessingAdvert: update(
+    [text, Types.AdminProcessingAdvertPayload],
+    Result(Types.AdminProcessingAdvert, Types.Message),
     (id, payload) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(id);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({ NotFound: `farmer sales advert with id=${id} not found` });
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(id);
+      if ("None" in adminProcessingAdvertOpt) {
+        return Err({
+          NotFound: `admin processing advert with id=${id} not found`,
+        });
       }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      const updatedFarmerSalesAdvert = {
-        ...farmerSalesAdvert,
+      const adminProcessingAdvert = adminProcessingAdvertOpt.Some;
+      const updatedAdminProcessingAdvert = {
+        ...adminProcessingAdvert,
         ...payload,
       };
-      FarmerSaleAdvertStorage.insert(farmerSalesAdvert.id, updatedFarmerSalesAdvert);
-      return Ok(updatedFarmerSalesAdvert);
+      adminProcessingAdvertStorage.insert(
+        adminProcessingAdvert.id,
+        updatedAdminProcessingAdvert
+      );
+      return Ok(updatedAdminProcessingAdvert);
     }
   ),
 
-  // function to get all farmer sales adverts of a farmer
-  getFarmerSalesAdvertsOfFarmer: query(
+  // function to get all admin processing adverts of a admin
+  getAdminProcessingAdvertsOfAdmin: query(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (farmerId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) => farmerSalesAdvert.farmerId === farmerId
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) => adminProcessingAdvert.adminId === adminId
       );
     }
   ),
 
-  // function to get all farmer sales adverts of a product
-  getFarmerSalesAdvertsOfProduct: query(
+  // Function to get all admin processing adverts of an item
+  getAdminProcessingAdvertsOfItem: query(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (productId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) => farmerSalesAdvert.productId === productId
+    Vec(Types.AdminProcessingAdvert),
+    (itemId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) => adminProcessingAdvert.itemId === itemId
+      );
+    }
+  ),
+
+  // function to get all admin processing adverts of a warehouseManagerId
+  getAdminProcessingAdvertsOfWarehouseManager: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (warehouseManagerId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.warehouseManagerId === warehouseManagerId && adminProcessingAdvert.status === "Active"
       );
     }
   ),
 
 
-  // function to get all farmer sales adverts of a processorCompanyId
-  getFarmerSalesAdvertsOfProcessorCompany: query(
+  // function to mark admin processing advert as approved
+  markAdminProcessingAdvertAsApproved: update(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (processorCompanyId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) => farmerSalesAdvert.processorCompanyId === processorCompanyId && farmerSalesAdvert.status === "Active"
-      );
-    }
-  ),
-
-
-
-  // function to mark farmer sales status as Approved
-  markFarmerSalesAdvertAsApproved: update(
-    [text],
-    Result(Types.FarmerSaleAdvert, Types.Message),
+    Result(Types.AdminProcessingAdvert, Types.Message),
     (id) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(id);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({ NotFound: `farmer sales advert with id=${id} not found` });
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(id);
+      if ("None" in adminProcessingAdvertOpt) {
+        return Err({
+          NotFound: `admin processing advert with id=${id} not found`,
+        });
       }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      farmerSalesAdvert.status = "Approved";
-      FarmerSaleAdvertStorage.insert(farmerSalesAdvert.id, farmerSalesAdvert);
-      return Ok(farmerSalesAdvert);
+      const adminProcessingAdvert = adminProcessingAdvertOpt.Some;
+      adminProcessingAdvert.status = "Approved";
+      adminProcessingAdvertStorage.insert(
+        adminProcessingAdvert.id,
+        adminProcessingAdvert
+      );
+      return Ok(adminProcessingAdvert);
     }
   ),
 
-  // 
-
-  // function to get all farmer sales adverts that are approved by processorCompanyId
-  getFarmerSalesAdvertsApprovedByProcessorCompany: query(
+  // function to get all admin processing adverts that are approved by warehouseManagerId
+  getAdminProcessingAdvertsApprovedByWarehouseManager: query(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (processorCompanyId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) =>
-          farmerSalesAdvert.processorCompanyId === processorCompanyId &&
-          farmerSalesAdvert.status === "Approved" && farmerSalesAdvert.farmerPaid === false
+    Vec(Types.AdminProcessingAdvert),
+    (warehouseManagerId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.warehouseManagerId === warehouseManagerId &&
+          adminProcessingAdvert.status === "Approved"
       );
     }
   ),
 
-  // / function to get all farmer sales adverts that are approved for a Farmer
-  getFarmerSalesAdvertsApprovedForFarmer: query(
+  // function to get all Admin proccessing advert that are approved for an admin 
+  getAdminProcessingAdvertsApprovedForAdmin: query(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (farmerId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) =>
-          farmerSalesAdvert.farmerId === farmerId &&
-          farmerSalesAdvert.status === "Approved"
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.adminId === adminId &&
+          adminProcessingAdvert.status === "Approved"
+      );
+    }
+  ),  
+
+  // function to get all admin processing adverts that are Completed
+  getCompletedAdminProcessingAdverts: query(
+    [],
+    Vec(Types.AdminProcessingAdvert),
+    () => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) => adminProcessingAdvert.status === "Completed"
       );
     }
   ),
 
-  // getFarmerSalesAdvertsCompletedForFarmer //paid
-  getFarmerSalesAdvertsCompletedForFarmer: query(
+  // getAdminProcessingAdvertCompletedForAdmin
+  getAdminProcessingAdvertCompletedForAdmin: query(
     [text],
-    Vec(Types.FarmerSaleAdvert),
-    (farmerId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) =>
-          farmerSalesAdvert.farmerId === farmerId &&
-          farmerSalesAdvert.farmerPaid === true && farmerSalesAdvert.status === "Completed"
-      );
-    }
-  ),
-  
-
-  // fetchPaidAdverts
-  getPaidAdverts: query(
-    [text],
-    Vec(Types.FarmerSaleAdvert),
-    (processorCompanyId) => {
-      const farmerSalesAdverts = FarmerSaleAdvertStorage.values();
-      return farmerSalesAdverts.filter(
-        (farmerSalesAdvert) =>
-          farmerSalesAdvert.processorCompanyId === processorCompanyId &&
-          farmerSalesAdvert.farmerPaid === true && farmerSalesAdvert.status === "Completed"
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.adminId === adminId &&
+          adminProcessingAdvert.status === "Completed"
       );
     }
   ),
 
 
 
-  // function to mark farmer sales advert as farmerPaid
-  markFarmerSalesAdvertAsFarmerPaid: update(
+  // function to get paid admin processing adverts
+  getPaidAdminProcessingAdverts: query(
+    [],
+    Vec(Types.AdminProcessingAdvert),
+    () => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) => adminProcessingAdvert.adminPaid === true
+      );
+    }
+  ),
+
+  // function to mark admin processing advert as adminPaid
+  markAdminProcessingAdvertAsAdminPaid: update(
     [text],
-    Result(Types.FarmerSaleAdvert, Types.Message),
+    Result(Types.AdminProcessingAdvert, Types.Message),
     (id) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(id);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({ NotFound: `farmer sales advert with id=${id} not found` });
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(id);
+      if ("None" in adminProcessingAdvertOpt) {
+        return Err({
+          NotFound: `admin processing advert with id=${id} not found`,
+        });
       }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      farmerSalesAdvert.farmerPaid = true;
-      farmerSalesAdvert.status = "Completed";
-      FarmerSaleAdvertStorage.insert(farmerSalesAdvert.id, farmerSalesAdvert);
-      return Ok(farmerSalesAdvert);
+      const adminProcessingAdvert = adminProcessingAdvertOpt.Some;
+      adminProcessingAdvert.adminPaid = true;
+      adminProcessingAdvert.status = "Completed";
+      adminProcessingAdvertStorage.insert(
+        adminProcessingAdvert.id,
+        adminProcessingAdvert
+      );
+      return Ok(adminProcessingAdvert);
     }
   ),
 
-  // Check if product.pickedUp is true using productId in FarmerSaleAdvert
-  checkIfProductPickedUp: query(
+  // Check if item.pickedUp is true using itemId in AdminProcessingAdvert
+  checkIfItemPickedUp: query(
     [text],
     Result(bool, Types.Message),
-    (farmerSalesAdvertId) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({ NotFound: `farmer sales advert with id=${farmerSalesAdvertId} not found` });
-      }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      const productOpt = productsStorage.get(farmerSalesAdvert.productId);
-      if ("None" in productOpt) {
-        return Err({ NotFound: `product with id=${farmerSalesAdvert.productId} not found` });
-      }
-
-      const product = productOpt.Some;
-      return Ok(product.pickedUp);
-    }
-  ),
-
-  // ** End of Farmer Sales Advert Functions **
-
-  
-
-  // get farmer by owner using filter
-  getFarmerByOwner: query([], Result(Types.Farmer, Types.Message), () => {
-    const farmerOpt = farmersStorage
-      .values()
-      .filter((farmer) => farmer.owner.toText() === ic.caller().toText());
-    if (farmerOpt.length === 0) {
-      return Err({ NotFound: `farmer with owner=${ic.caller()} not found` });
-    }
-    return Ok(farmerOpt[0]);
-  }),
-
-  // get processing company by owner using filter
-  getProcessingCompanyByOwner: query([], Result(Types.ProcessingCompany, Types.Message), () => {
-    const processingCompanyOpt = processingCompanyStorage
-      .values()
-      .filter((processingCompany) => processingCompany.owner.toText() === ic.caller().toText());
-    if (processingCompanyOpt.length === 0) {
-      return Err({ NotFound: `processing company with owner=${ic.caller()} not found` });
-    }
-    return Ok(processingCompanyOpt[0]);
-  }),
-
-  // get distributor company by owner using filter
-  getDistributorCompanyByOwner : query([], Result(Types.DistributorsCompany, Types.Message), () => {
-    const distributorCompanyOpt = distributorsCompanyStorage
-      .values()
-      .filter((distributorCompany) => distributorCompany.owner.toText() === ic.caller().toText());
-    if (distributorCompanyOpt.length === 0) {
-      return Err({ NotFound: `distributor company with owner=${ic.caller()} not found` });
-    }
-    return Ok(distributorCompanyOpt[0]);
-  }),
-    // function to get driver with the same owner as ic.caller()
-  getDriverByOwner: query([], Result(Types.Driver, Types.Message), () => {
-    const driverOpt = driversStorage
-      .values()
-      .find((driver) => driver.owner.toText() === ic.caller().toText());
-    if (!driverOpt) {
-      return Err({ NotFound: `driver with owner=${ic.caller()} not found` });
-    }
-    return Ok(driverOpt);
-  }
-  ),
-
-  // get driver by owner using filter
-  getDriverByOwnerFilter: query([], Result(Types.Driver, Types.Message), () => {
-    const driverOpt = driversStorage
-      .values()
-      .filter((driver) => driver.owner.toText() === ic.caller().toText());
-    if (driverOpt.length === 0) {
-      return Err({ NotFound: `driver with owner=${ic.caller()} not found` });
-    }
-    return Ok(driverOpt[0]);
-  }),
-
-  // get driver active delivery 
-  getDriverActiveDelivery: query(
-    [text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (driverId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      const deliveryDetailsList = deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.driverId.Some === driverId &&
-          deliveryDetail.deliveryStatus === "Accepted"
+    (adminProcessingAdvertId) => {
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(
+        adminProcessingAdvertId
       );
-
-      if (deliveryDetailsList.length === 0) {
+      if ("None" in adminProcessingAdvertOpt) {
         return Err({
-          NotFound: `driver with id=${driverId} has no active delivery`,
+          NotFound: `admin processing advert with id=${adminProcessingAdvertId} not found`,
         });
       }
-
-      return Ok(deliveryDetailsList[0]);
-    }
-  ), 
-
-  // function to get driver Complete Delivery
-  getDriverCompleteDelivery: query(
-    [text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (driverId) => {
-      const deliveryDetails = deliveryDetailsStorage.values();
-      const deliveryDetailsList = deliveryDetails.filter(
-        (deliveryDetail) =>
-          deliveryDetail.driverId.Some === driverId &&
-          deliveryDetail.deliveryStatus === "Completed"
-      );
-
-      if (deliveryDetailsList.length === 0) {
+      const adminProcessingAdvert = adminProcessingAdvertOpt.Some;
+      const itemOpt = itemsStorage.get(adminProcessingAdvert.itemId);
+      if ("None" in itemOpt) {
         return Err({
-          NotFound: `driver with id=${driverId} has no complete delivery`,
+          NotFound: `item with id=${adminProcessingAdvert.itemId} not found`,
         });
       }
-
-      return Ok(deliveryDetailsList[0]);
+      const item = itemOpt.Some;
+      return Ok(item.pickedUp);
     }
   ),
-  
 
+  // ** End of Admin Processing Advert Functions **
 
+  // ** Start of Admin Processing Payment Functions **
 
   getAddressFromPrincipal: query([Principal], text, (principal) => {
     return hexAddressFromPrincipal(principal, 0);
   }),
 
+ 
 
-  // create a Farmer Reserve Payment
-  createReserveFarmerPay: update(
-    [text],
-    Result(Types.ReserveFarmerPayment, Types.Message),
-    (farmerSalesAdvertId) => {
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({
-          NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
-        });
-      }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      const farmerId = farmerSalesAdvert.farmerId;
-      console.log("farmerId", farmerId);
-      const farmerOpt = farmersStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({
-          NotFound: `farmer with id=${farmerId} not found`,
-        });
-      }
-      const farmer = farmerOpt.Some;
-      const farmerOwner = farmer.owner;
+    // // create a Farmer Reserve Payment
+    // createReserveFarmerPay: update(
+    //   [text],
+    //   Result(Types.ReserveFarmerPayment, Types.Message),
+    //   (farmerSalesAdvertId) => {
+    //     const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
+    //     if ("None" in farmerSalesAdvertOpt) {
+    //       return Err({
+    //         NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
+    //       });
+    //     }
+    //     const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
+    //     const farmerId = farmerSalesAdvert.farmerId;
+    //     console.log("farmerId", farmerId);
+    //     const farmerOpt = farmersStorage.get(farmerId);
+    //     if ("None" in farmerOpt) {
+    //       return Err({
+    //         NotFound: `farmer with id=${farmerId} not found`,
+    //       });
+    //     }
+    //     const farmer = farmerOpt.Some;
+    //     const farmerOwner = farmer.owner;
+  
+    //     const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
+  
+    //     const processingCompanyId = farmerSalesAdvert.processorCompanyId;
+    //     console.log("processingCompanyId", processingCompanyId);
+    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+    //     if ("None" in processingCompanyOpt) {
+    //       return Err({
+    //         NotFound: `processing company with id=${processingCompanyId} not found`,
+    //       });
+    //     }
+    //     const processingCompany = processingCompanyOpt.Some;
+    //     const processingCompanyOwner = processingCompany.owner;
+  
+    //     const reserveFarmerPayment = {
+    //       ProcessorId: processingCompanyId,
+    //       price: cost,
+    //       status: "pending",
+    //       processorPayer: processingCompanyOwner,
+    //       farmerReciever: farmerOwner,
+    //       paid_at_block: None,
+    //       memo: generateCorrelationId(farmerSalesAdvertId),
+    //     };
+  
+    //     console.log("reserveFarmerPayment", reserveFarmerPayment);
+    //     pendingFarmerReserves.insert(reserveFarmerPayment.memo, reserveFarmerPayment);
+    //     discardByTimeout(reserveFarmerPayment.memo, PAYMENT_RESERVATION_PERIOD);
+    //     return Ok(reserveFarmerPayment);
+  
+    //   }
+    // ),
 
-      const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
+    // // Create createReserveAdminPay function .. Admin to pay the Warehouseis the processor
+    // createReserveAdminPay: update(
+    //   [text],
+    //   Result(Types.ReserveAdminPayment, Types.Message),
+    //   (adminSalesAdvertId) => {
+    //     const adminSalesAdvertOpt = adminProcessingAdvertStorage.get(adminSalesAdvertId);
+    //     if ("None" in adminSalesAdvertOpt) {
+    //       return Err({
+    //         NotFound: `cannot reserve Payment: Admin Sales Advert with id=${adminSalesAdvertId} not available`,
+    //       });
+    //     }
+    //     const adminSalesAdvert = adminSalesAdvertOpt.Some;
+    //     const adminId = adminSalesAdvert.adminId;
+    //     console.log("adminId", adminId);
+    //     const adminOpt = adminStorage.get(adminId);
+    //     if ("None" in adminOpt) {
+    //       return Err({
+    //         NotFound: `admin with id=${adminId} not found`,
+    //       });
+    //     }
+    //     const admin = adminOpt.Some;
+    //     const adminOwner = admin.owner;
 
-      const processingCompanyId = farmerSalesAdvert.processorCompanyId;
-      console.log("processingCompanyId", processingCompanyId);
-      const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
-      if ("None" in processingCompanyOpt) {
-        return Err({
-          NotFound: `processing company with id=${processingCompanyId} not found`,
-        });
-      }
-      const processingCompany = processingCompanyOpt.Some;
-      const processingCompanyOwner = processingCompany.owner;
+    //     const cost = BigInt(adminSalesAdvert.price * adminSalesAdvert.quantity);
 
-      const reserveFarmerPayment = {
-        ProcessorId: processingCompanyId,
-        price: cost,
-        status: "pending",
-        processorPayer: processingCompanyOwner,
-        farmerReciever: farmerOwner,
-        paid_at_block: None,
-        memo: generateCorrelationId(farmerSalesAdvertId),
-      };
+    //     const processingCompanyId = adminSalesAdvert.processorCompanyId;
+    //     console.log("processingCompanyId", processingCompanyId);
+    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+    //     if ("None" in processingCompanyOpt) {
+    //       return Err({
+    //         NotFound: `processing company with id=${processingCompanyId} not found`,
+    //       });
+    //     }
 
-      console.log("reserveFarmerPayment", reserveFarmerPayment);
-      pendingFarmerReserves.insert(reserveFarmerPayment.memo, reserveFarmerPayment);
-      discardByTimeout(reserveFarmerPayment.memo, PAYMENT_RESERVATION_PERIOD);
-      return Ok(reserveFarmerPayment);
+    //     const processingCompany = processingCompanyOpt.Some;
+    //     const processingCompanyOwner = processingCompany.owner;
 
-    }
-  ),
+    //     const reserveAdminPayment = {
+    //       ProcessorId: processingCompanyId,
+    //       price: cost,
+    //       status: "pending",
+    //       processorPayer: processingCompanyOwner,
+    //       adminReciever: adminOwner,
+    //       paid_at_block: None,
+    //       memo: generateCorrelationId(adminSalesAdvertId),
+    //     };
 
-  completeFarmerPayment: update(
+    //     console.log("reserveAdminPayment", reserveAdminPayment);
+    //     pendingAdminReserves.insert(reserveAdminPayment.memo, reserveAdminPayment);
+    //     discardByTimeout(reserveAdminPayment.memo, PAYMENT_RESERVATION_PERIOD);
+
+    //     return Ok(reserveAdminPayment);
+    //   }
+
+    // ),
+  
+
+ 
+
+  completeAdminPayment: update(
     [Principal, text, nat64, nat64, nat64],
-    Result(Types.ReserveFarmerPayment, Types.Message),
+    Result(Types.ReserveAdminPayment, Types.Message),
     async (reservor, farmerSalesAdvertId, reservePrice, block, memo) => {
       const paymentVerified = await verifyPaymentInternal(
         reservor,
@@ -1812,7 +2208,7 @@ export default Canister({
           NotFound: `cannot complete the reserve: cannot verify the payment, memo=${memo}`,
         });
       }
-      const pendingReservePayOpt = pendingFarmerReserves.remove(memo);
+      const pendingReservePayOpt = pendingAdminReserves.remove(memo);
       if ("None" in pendingReservePayOpt) {
         return Err({
           NotFound: `cannot complete the reserve: there is no pending reserve with id=${farmerSalesAdvertId}`,
@@ -1824,12 +2220,18 @@ export default Canister({
         status: "completed",
         paid_at_block: Some(block),
       };
-      const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
+      const farmerSalesAdvertOpt =
+        adminProcessingAdvertStorage.get(farmerSalesAdvertId);
       if ("None" in farmerSalesAdvertOpt) {
-        throw Error(`FarmerSalesAdvert with id=${farmerSalesAdvertId} not found`);
+        throw Error(
+          `FarmerSalesAdvert with id=${farmerSalesAdvertId} not found`
+        );
       }
       const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      FarmerSaleAdvertStorage.insert(farmerSalesAdvert.id, farmerSalesAdvert);
+      adminProcessingAdvertStorage.insert(
+        farmerSalesAdvert.id,
+        farmerSalesAdvert
+      );
       persistedFarmerReserves.insert(ic.caller(), updatedReservePayment);
       return Ok(updatedReservePayment);
     }
@@ -1862,7 +2264,8 @@ export default Canister({
 
       const processingCompanyId = deliveryTender.processorsId;
       console.log("processingCompanyId", processingCompanyId);
-      const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+      const processingCompanyOpt =
+        warehouseManagerStorage.get(processingCompanyId);
       if ("None" in processingCompanyOpt) {
         return Err({
           NotFound: `processing company with id=${processingCompanyId} not found`,
@@ -1882,8 +2285,14 @@ export default Canister({
       };
 
       console.log("reserveDistributorPayment", reserveDistributorPayment);
-      pendingDistributorReserves.insert(reserveDistributorPayment.memo, reserveDistributorPayment);
-      discardByTimeout(reserveDistributorPayment.memo, PAYMENT_RESERVATION_PERIOD);
+      pendingDistributorReserves.insert(
+        reserveDistributorPayment.memo,
+        reserveDistributorPayment
+      );
+      discardByTimeout(
+        reserveDistributorPayment.memo,
+        PAYMENT_RESERVATION_PERIOD
+      );
       return Ok(reserveDistributorPayment);
     }
   ),
@@ -1926,14 +2335,12 @@ export default Canister({
     }
   ),
 
-
-
   // create a Driver Reserve Payment
   createReserveDriverPay: update(
     [text, nat64],
     Result(Types.ReserveDriverPayment, Types.Message),
     (deliveryTenderId, amount) => {
-      console.log("details", deliveryTenderId, amount)
+      console.log("details", deliveryTenderId, amount);
       const deliveryTenderOpt = deliveryTenderStorage.get(deliveryTenderId);
       if ("None" in deliveryTenderOpt) {
         return Err({
@@ -1961,10 +2368,11 @@ export default Canister({
       const driverOwner = driver.owner;
 
       const cost = amount;
-      console.log("cost",cost)
+      console.log("cost", cost);
       const distributorCompanyId = deliveryDetails.distributorsId;
       console.log("distributorCompanyId", distributorCompanyId);
-      const distributorCompanyOpt = distributorsCompanyStorage.get(distributorCompanyId);
+      const distributorCompanyOpt =
+        distributorsCompanyStorage.get(distributorCompanyId);
       if ("None" in distributorCompanyOpt) {
         return Err({
           NotFound: `distributor company with id=${distributorCompanyId} not found`,
@@ -1984,18 +2392,20 @@ export default Canister({
       };
 
       console.log("reserveDriverPayment", reserveDriverPayment);
-      pendingDriverReserves.insert(reserveDriverPayment.memo, reserveDriverPayment);
+      pendingDriverReserves.insert(
+        reserveDriverPayment.memo,
+        reserveDriverPayment
+      );
       discardByTimeout(reserveDriverPayment.memo, PAYMENT_RESERVATION_PERIOD);
       return Ok(reserveDriverPayment);
     }
-
   ),
 
   // complete a Driver Reserve Payment
   completeDriverPayment: update(
     [Principal, text, nat64, nat64, nat64],
     Result(Types.ReserveDriverPayment, Types.Message),
-    async (reservor,  deliveryTenderId, reservePrice, block, memo) => {
+    async (reservor, deliveryTenderId, reservePrice, block, memo) => {
       const paymentVerified = await verifyPaymentInternal(
         reservor,
         reservePrice,
@@ -2040,7 +2450,6 @@ export default Canister({
   ),
 });
 
-
 /*
     a hash function that is used to generate correlation ids for orders.
     also, we use that in the verifyPayment function where we check if the used has actually paid the order
@@ -2071,7 +2480,7 @@ function generateCorrelationId(orderId: text): nat64 {
 
 function discardByTimeout(memo: nat64, delay: Duration) {
   ic.setTimer(delay, () => {
-    const advert = pendingFarmerReserves.remove(memo);
+    const advert = pendingAdminReserves.remove(memo);
     console.log(`Reserve discarded ${advert}`);
   });
 }

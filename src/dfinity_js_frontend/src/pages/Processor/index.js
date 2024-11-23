@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { login } from "../../utils/auth";
 import { Notification } from "../../components/utils/Notifications";
 import Login from "./Login";
-import { getProcessingCompanyByOwner } from "../../utils/processorCompany";
+import { getProcessingCompanyByOwner } from "../../utils/warehouse";
 import { Loader } from "../../components/utils";
 import CompanyOverviewPage from "./CompanyOverview";
 import ActivateProcessorAccount from "./ActivateProcessorAccount";

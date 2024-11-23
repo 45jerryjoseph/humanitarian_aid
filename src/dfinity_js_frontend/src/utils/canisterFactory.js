@@ -1,13 +1,13 @@
 import { HttpAgent, Actor } from "@dfinity/agent";
-import { idlFactory as agroChainIDL } from "../../../declarations/dfinity_js_backend/dfinity_js_backend.did.js";
+import { idlFactory as aidChainIDL } from "../../../declarations/dfinity_js_backend/dfinity_js_backend.did.js";
 import { idlFactory as ledgerIDL } from "../../../declarations/ledger_canister/ledger_canister.did.js";
 
-const agroChain_CANISTER_ID = "be2us-64aaa-aaaaa-qaabq-cai";
+const aidChain_CANISTER_ID = "be2us-64aaa-aaaaa-qaabq-cai";
 const LEDGER_CANISTER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 const HOST = "http://localhost:4943";
 
-export async function getAgroChainCanister() {
-  return await getCanister(agroChain_CANISTER_ID, agroChainIDL);
+export async function getAidChainCanister() {
+  return await getCanister(aidChain_CANISTER_ID, aidChainIDL);
 }
 
 export async function getLedgerCanister() {

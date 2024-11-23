@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Helmet } from "react-helmet";
 import { Link } from "react-router-dom";
-import { createClientCompany, createProcessingCompany } from "../../../utils/processorCompany";
+import { createClientCompany, createProcessingCompany } from "../../../utils/warehouse";
 import { Img, Text, Button, Header } from "../../../components/utils";
 import * as Images from "../../../assets/images";
 

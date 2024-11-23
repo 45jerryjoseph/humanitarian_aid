@@ -1,25 +1,25 @@
 export async function createDeliveryDetails(deliveryDetails) {
-    return window.canister.agroChain.createDeliveryDetails(deliveryDetails);
+    return window.canister.aidChain.createDeliveryDetails(deliveryDetails);
   }
 
-  // addProductToDeliveryDetails
-  export async function addProductToDeliveryDetails(deliveryId, productId) {
-    return window.canister.agroChain.addProductToDeliveryDetails(deliveryId, productId);
+  // addItemToDeliveryDetails
+  export async function addItemToDeliveryDetails(deliveryId, itemId) {
+    return window.canister.aidChain.addItemToDeliveryDetails(deliveryId, itemId);
   }
 
   // addDriverIdToDeliveryDetails
   export async function addDriverIdToDeliveryDetails(deliveryId, driverId) {
-    return window.canister.agroChain.addDriverIdToDeliveryDetails(deliveryId, driverId);
+    return window.canister.aidChain.addDriverIdToDeliveryDetails(deliveryId, driverId);
   }
 
   // updateDeliveryDate
   export async function updateDeliveryDate(deliveryId, deliveryDate) {
-    return window.canister.agroChain.updateDeliveryDate(deliveryId, deliveryDate);
+    return window.canister.aidChain.updateDeliveryDate(deliveryId, deliveryDate);
   }
   
   export async function getAllDeliveryDetails() {
     try {
-      return await window.canister.agroChain.getAllDeliveryDetails();
+      return await window.canister.aidChain.getAllDeliveryDetails();
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -31,7 +31,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   
   export async function getDeliveryDetails(id) {
     try {
-      return await window.canister.agroChain.getDeliveryDetails(id);
+      return await window.canister.aidChain.getDeliveryDetails(id);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -43,7 +43,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   
   export async function updateDeliveryDetails(id,deliveryDetails) {
     try {
-      return await window.canister.agroChain.updateDeliveryDetails(id,deliveryDetails);
+      return await window.canister.aidChain.updateDeliveryDetails(id,deliveryDetails);
     }  catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -56,7 +56,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getActiveDeliveryDetails
   export async function getActiveDeliveryDetails() {
     try {
-      return await window.canister.agroChain.getActiveDeliveryDetails();
+      return await window.canister.aidChain.getActiveDeliveryDetails();
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -69,7 +69,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getNewDeliveryDetailsInDistributorsCompany
   export async function getNewDeliveryDetailsInDistributorsCompany(companyId) {
     try {
-      return await window.canister.agroChain.getNewDeliveryDetailsInDistributorsCompany(companyId);
+      return await window.canister.aidChain.getNewDeliveryDetailsInDistributorsCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -79,10 +79,10 @@ export async function createDeliveryDetails(deliveryDetails) {
     }
   }
 
-  // getNewDeliveryDetailsInProcessingCompany
-  export async function getNewDeliveryDetailsInProcessingCompany(companyId) {
+  // getNewDeliveryDetailsForWarehouseManager
+  export async function getNewDeliveryDetailsForWarehouseManager(managerId) {
     try {
-      return await window.canister.agroChain.getNewDeliveryDetailsInProcessingCompany(companyId);
+      return await window.canister.aidChain.getNewDeliveryDetailsForWarehouseManager(managerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -92,10 +92,10 @@ export async function createDeliveryDetails(deliveryDetails) {
     }
   }
 
-  // getTenderedDeliveryDetailsInProcessingCompany
-  export async function getTenderedDeliveryDetailsInProcessingCompany(companyId) {
+  // getTenderedDeliveryDetailsForWarehouseManager
+  export async function getTenderedDeliveryDetailsForWarehouseManager(managerId) {
     try {
-      return await window.canister.agroChain.getTenderedDeliveryDetailsInProcessingCompany(companyId);
+      return await window.canister.aidChain.getTenderedDeliveryDetailsForWarehouseManager(managerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -109,7 +109,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getTenderedDeliveryDetailsInDistributorsCompany
   export async function getTenderedDeliveryDetailsInDistributorsCompany(companyId) {
     try {
-      return await window.canister.agroChain.getTenderedDeliveryDetailsInDistributorsCompany(companyId);
+      return await window.canister.aidChain.getTenderedDeliveryDetailsInDistributorsCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -119,10 +119,10 @@ export async function createDeliveryDetails(deliveryDetails) {
     }
   }
 
-  // getCompletedDeliveryDetailsInProcessingCompany
-  export async function getCompletedDeliveryDetailsInProcessingCompany(companyId) {
+  // getCompletedDeliveryDetailsForWarehouseManager
+  export async function getCompletedDeliveryDetailsForWarehouseManager(managerId) {
     try {
-      return await window.canister.agroChain.getCompletedDeliveryDetailsInProcessingCompany(companyId);
+      return await window.canister.aidChain.getCompletedDeliveryDetailsForWarehouseManager(managerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -135,7 +135,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getCompletedDeliveryDetailsInDistributorsCompany
   export async function getCompletedDeliveryDetailsInDistributorsCompany(companyId) {
     try {
-      return await window.canister.agroChain.getCompletedDeliveryDetailsInDistributorsCompany(companyId);
+      return await window.canister.aidChain.getCompletedDeliveryDetailsInDistributorsCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -149,7 +149,7 @@ export async function createDeliveryDetails(deliveryDetails) {
 
   export async function getAcceptedDeliveryDetailsInDistributorsCompany(companyId) {
     try {
-      return await window.canister.agroChain.getAcceptedDeliveryDetailsInDistributorsCompany(companyId);
+      return await window.canister.aidChain.getAcceptedDeliveryDetailsInDistributorsCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -162,7 +162,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getDeliveryDetailsAssignedToDriver
   export async function getDeliveryDetailsAssignedToDriver(driverId) {
     try {
-      return await window.canister.agroChain.getDeliveryDetailsAssignedToDriver(driverId);
+      return await window.canister.aidChain.getDeliveryDetailsAssignedToDriver(driverId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -173,13 +173,13 @@ export async function createDeliveryDetails(deliveryDetails) {
   }
   // markDeliveryDetailsAsPicked
   export async function markDeliveryDetailsAsPicked(deliveryId) {
-    return window.canister.agroChain.markDeliveryDetailsAsPicked(deliveryId);
+    return window.canister.aidChain.markDeliveryDetailsAsPicked(deliveryId);
   }
 
   // getDeliveryDetailsPickedUp
   export async function getDeliveryDetailsPickedUp(driverId) {
     try {
-      return await window.canister.agroChain.getDeliveryDetailsPickedUp(driverId);
+      return await window.canister.aidChain.getDeliveryDetailsPickedUp(driverId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -192,7 +192,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getDeliveryDetailsPickedUpForDistributorCompany
   export async function getDeliveryDetailsPickedUpForDistributorCompany(companyId) {
     try {
-      return await window.canister.agroChain.getDeliveryDetailsPickedUpForDistributorCompany(companyId);
+      return await window.canister.aidChain.getDeliveryDetailsPickedUpForDistributorCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -204,7 +204,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getRecentDeliveryDetailsAssignedToDriver
   export async function getRecentDeliveryDetailsAssignedToDriver(driverId) {
     try {
-      return await window.canister.agroChain.getRecentDeliveryDetailsAssignedToDriver(driverId);
+      return await window.canister.aidChain.getRecentDeliveryDetailsAssignedToDriver(driverId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -216,13 +216,13 @@ export async function createDeliveryDetails(deliveryDetails) {
 
   // markDeliveryDetailsAsCompleted
   export async function markDeliveryDetailsAsCompleted(deliveryId) {
-    return window.canister.agroChain.markDeliveryDetailsAsCompleted(deliveryId);
+    return window.canister.aidChain.markDeliveryDetailsAsCompleted(deliveryId);
   }
 
   // getCompletedDeliveryDetailsForDriver
   export async function getCompletedDeliveryDetailsForDriver(driverId) {
     try {
-      return await window.canister.agroChain.getCompletedDeliveryDetailsForDriver(driverId);
+      return await window.canister.aidChain.getCompletedDeliveryDetailsForDriver(driverId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -232,10 +232,10 @@ export async function createDeliveryDetails(deliveryDetails) {
     }
   }
 
-  // getCompletedDeliveryDetailsForProcessingCompany
-  export async function getCompletedDeliveryDetailsForProcessingCompany(companyId) {
+  // getCompletedDeliveryDetailsForWarehouseManager
+  export async function getCompletedDeliveryDetailsForWarehouseManager(managerId) {
     try {
-      return await window.canister.agroChain.getCompletedDeliveryDetailsForProcessingCompany(companyId);
+      return await window.canister.aidChain.getCompletedDeliveryDetailsForWarehouseManager(managerId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -248,7 +248,7 @@ export async function createDeliveryDetails(deliveryDetails) {
   // getCompletedDeliveryDetailsForDistributorCompany
   export async function getCompletedDeliveryDetailsForDistributorCompany(companyId) {
     try {
-      return await window.canister.agroChain.getCompletedDeliveryDetailsForDistributorCompany(companyId);
+      return await window.canister.aidChain.getCompletedDeliveryDetailsForDistributorCompany(companyId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;

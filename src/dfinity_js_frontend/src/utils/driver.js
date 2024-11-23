@@ -1,18 +1,18 @@
 export async function createDriver(driver) {
-  return window.canister.agroChain.createDriver(driver);
+  return window.canister.aidChain.createDriver(driver);
 }
 
 export async function getDriverByOwner() {
-  return window.canister.agroChain.getDriverByOwner();
+  return window.canister.aidChain.getDriverByOwner();
 }
 
 export async function getDriverByOwnerFilter() {
-  return window.canister.agroChain.getDriverByOwnerFilter();
+  return window.canister.aidChain.getDriverByOwnerFilter();
 }
 
 export async function getAllDrivers() {
   try {
-    return await window.canister.agroChain.getAllDrivers();
+    return await window.canister.aidChain.getAllDrivers();
   } catch (err) {
     if (err.name === "AgentHTTPResponseError") {
       const authClient = window.auth.client;
@@ -24,7 +24,7 @@ export async function getAllDrivers() {
 
 export async function getDriver(id) {
   try {
-    return await window.canister.agroChain.getDriver(id);
+    return await window.canister.aidChain.getDriver(id);
   } catch (err) {
     if (err.name === "AgentHTTPResponseError") {
       const authClient = window.auth.client;
@@ -37,7 +37,7 @@ export async function getDriver(id) {
 // getDriverActiveDelivery
 export async function getDriverActiveDelivery(driverId) {
   try {
-    return await window.canister.agroChain.getDriverActiveDelivery(driverId);
+    return await window.canister.aidChain.getDriverActiveDelivery(driverId);
   } catch (err) {
     console.log(err);
     return {};
@@ -47,7 +47,7 @@ export async function getDriverActiveDelivery(driverId) {
 // getDriverCompleteDelivery
 export async function getDriverCompleteDelivery(driverId) {
   try {
-    return await window.canister.agroChain.getDriverCompleteDelivery(driverId);
+    return await window.canister.aidChain.getDriverCompleteDelivery(driverId);
   } catch (err) {
     console.log(err);
     return {};
@@ -57,7 +57,7 @@ export async function getDriverCompleteDelivery(driverId) {
 // updateDriver
 export async function updateDriver(driverId,payload) {
   try {
-    return await window.canister.agroChain.updateDriver(driverId,payload);
+    return await window.canister.aidChain.updateDriver(driverId,payload);
   } catch (err) {
     console.log(err);
     return {};
@@ -67,7 +67,7 @@ export async function updateDriver(driverId,payload) {
 // addQualification
 export async function addQualification(driverId,qualification) {
   try {
-    return await window.canister.agroChain.addQualification(driverId,qualification);
+    return await window.canister.aidChain.addQualification(driverId,qualification);
   } catch (err) {
     console.log(err);
     return {};
@@ -77,7 +77,7 @@ export async function addQualification(driverId,qualification) {
 // assignVehicle
 export async function assignVehicle(driverId,vehicleId) {
   try {
-    return await window.canister.agroChain.assignVehicle(driverId,vehicleId);
+    return await window.canister.aidChain.assignVehicle(driverId,vehicleId);
   } catch (err) {
     console.log(err);
     return {};

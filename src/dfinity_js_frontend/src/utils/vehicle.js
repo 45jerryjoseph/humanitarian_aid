@@ -1,6 +1,6 @@
 export async function createVehicle(vehiclePayload,id) {
     try {
-      return await window.canister.agroChain.createVehicle(vehiclePayload,id);
+      return await window.canister.aidChain.createVehicle(vehiclePayload,id);
     } catch (err) {
       console.log(err);
       if (err.name === "AgentHTTPResponseError") {
@@ -14,7 +14,7 @@ export async function createVehicle(vehiclePayload,id) {
 //   getAllVehicles
 export async function getAllVehicles() {
     try {
-      return await window.canister.agroChain.getAllVehicles();
+      return await window.canister.aidChain.getAllVehicles();
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -27,7 +27,7 @@ export async function getAllVehicles() {
 // getVehicle
 export async function getVehicle(vehicleId) {
     try {
-      return await window.canister.agroChain.getVehicle(vehicleId);
+      return await window.canister.aidChain.getVehicle(vehicleId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -40,7 +40,7 @@ export async function getVehicle(vehicleId) {
   // updateVehicle
 export async function updateVehicle(vehicleId, vehiclePayload) {
     try {
-      return await window.canister.agroChain.updateVehicle(vehicleId, vehiclePayload);
+      return await window.canister.aidChain.updateVehicle(vehicleId, vehiclePayload);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
@@ -53,7 +53,7 @@ export async function updateVehicle(vehicleId, vehiclePayload) {
   // getVehiclesByDistributorCompany
 export async function getVehiclesByDistributorCompany(distributorId) {
     try {
-      return await window.canister.agroChain.getVehiclesByDistributorCompany(distributorId);
+      return await window.canister.aidChain.getVehiclesByDistributorCompany(distributorId);
     } catch (err) {
       if (err.name === "AgentHTTPResponseError") {
         const authClient = window.auth.client;
