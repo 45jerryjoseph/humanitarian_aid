@@ -109,6 +109,7 @@ export async function getWarehouseManagerByOwner() {
 //   );
 // }
 
+// function to pay Distributors
 export async function payDistributors(deliveryTender) {
   const aidChainCanister = window.canister.aidChain;
   const deliveryTenderResponse = await aidChainCanister.createReserveDistributorPay(deliveryTender.deliveryTenderId);
@@ -121,7 +122,7 @@ export async function payDistributors(deliveryTender) {
     deliveryTenderResponse.Ok.price,
     deliveryTenderResponse.Ok.memo
   );
-  await agroChainCanister.completeDistributorPayment(
+  await aidChainCanister.completeDistributorPayment(
     distributorPrincipal,
     deliveryTender.deliveryTenderId,
     deliveryTenderResponse.Ok.price,

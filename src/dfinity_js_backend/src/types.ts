@@ -539,10 +539,10 @@ export const ReserveAdminPayment = Record({
 
 
 export const ReserveDistributorsPayment = Record({
-  ProcessorId: text,
+  warehouseManagerId: text,
   price: nat64,
   status: text,
-  processorPayer: Principal,
+  warehouseManagerPayer: Principal,
   distributorReciever: Principal,
   paid_at_block: Opt(nat64),
   memo: nat64,
@@ -562,10 +562,10 @@ export const ReserveDistributorsPayment = Record({
 
 // ReserveWarehousePayment
 export const ReserveWarehousePayment = Record({
-  ProcessorId: text,
+  adminId: text,
   price: nat64,
   status: text,
-  processorPayer: Principal,
+  adminPayer: Principal,
   warehouseReciever: Principal,
   paid_at_block: Opt(nat64),
   memo: nat64,
