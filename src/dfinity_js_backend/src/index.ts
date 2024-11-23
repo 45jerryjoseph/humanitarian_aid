@@ -1156,18 +1156,10 @@ export default Canister({
         return Err({ NotFound: "invalid payload" });
       }
 
-      // Check if the associated driver exists
-      const driverOpt = driversStorage.get(payload.associated_driver);
-
-      if ("None" in driverOpt) {
-        return Err({
-          NotFound: `driver with id=${payload.associated_driver} not found`,
-        });
-      }
-
       // Create an event with a unique id generated using UUID v4
       const fieldWorker = {
         id: uuidv4(),
+        owner: ic.caller(),
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -1254,6 +1246,47 @@ export default Canister({
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
+
+      // Ensure that the Warehouse Manager exists
+      const warehouseManagerOpt = warehouseManagerStorage.get(
+        payload.warehouseManagerId
+      );
+
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `Warehouse Manager with id=${payload.warehouseManagerId} not found`,
+        });
+      }
+
+      // Ensure that the Distributors Company exists
+      const distributorCompanyOpt = distributorsCompanyStorage.get(
+        payload.distributorsId
+      );
+
+      if ("None" in distributorCompanyOpt) {
+        return Err({
+          NotFound: `Distributors Company with id=${payload.distributorsId} not found`,
+        });
+      }
+
+      // Ensure that the Item exists
+      const itemOpt = itemsStorage.get(payload.itemId);
+
+      if ("None" in itemOpt) {
+        return Err({
+          NotFound: `Item with id=${payload.itemId} not found`,
+        });
+      }
+
+      // Ensure that the admin exists
+      const adminOpt = adminStorage.get(payload.adminId);
+
+      if ("None" in adminOpt) {
+        return Err({
+          NotFound: `Admin with id=${payload.adminId} not found`,
+        });
+      }
+
       // Create an event with a unique id generated using UUID v4
       const deliveryDetails = {
         id: uuidv4(),
@@ -2477,7 +2510,10 @@ export default Canister({
         memo: generateCorrelationId(adminProcessingAdvertId),
       };
 
-      console.log("reserveWarehouseManagerPayment", reserveWarehouseManagerPayment);
+      console.log(
+        "reserveWarehouseManagerPayment",
+        reserveWarehouseManagerPayment
+      );
       pendingWarehouseReserves.insert(
         reserveWarehouseManagerPayment.memo,
         reserveWarehouseManagerPayment
@@ -2518,9 +2554,13 @@ export default Canister({
         status: "completed",
         paid_at_block: Some(block),
       };
-      const adminAdvertOpt = adminProcessingAdvertStorage.get(adminProcessingAdvertId);
+      const adminAdvertOpt = adminProcessingAdvertStorage.get(
+        adminProcessingAdvertId
+      );
       if ("None" in adminAdvertOpt) {
-        throw Error(`Admin processing advert with id=${adminProcessingAdvertId} not found`);
+        throw Error(
+          `Admin processing advert with id=${adminProcessingAdvertId} not found`
+        );
       }
       const adminAdvert = adminAdvertOpt.Some;
       adminProcessingAdvertStorage.insert(adminAdvert.id, adminAdvert);
