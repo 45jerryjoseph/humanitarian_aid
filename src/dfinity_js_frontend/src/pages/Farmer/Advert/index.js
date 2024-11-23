@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Button as BButton, Modal, Form, FloatingLabel } from "react-bootstrap";
 import { Button, Loader, NotificationError, NotificationSuccess } from "../../../components/utils";
 import { toast } from "react-toastify";
-import { getAllProcessingCompanies } from "../../../utils/processorCompany";
+import { getAllProcessingCompanies } from "../../../utils/warehouse";
 import { createFarmerSalesAdvert } from "../../../utils/advert";
 
 function SaleAdvert({ product, farmerId }) {

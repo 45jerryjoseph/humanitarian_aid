@@ -75,7 +75,7 @@ const persistedDriverReserves = StableBTreeMap(
   Principal,
   Types.ReserveDriverPayment
 );
-const pendingFarmerReserves = StableBTreeMap(
+const pendingAdminReserves = StableBTreeMap(
   12,
   nat64,
   Types.ReserveAdminPayment
@@ -95,15 +95,15 @@ const persistedDistributorReserves = StableBTreeMap(
   Principal,
   Types.ReserveDistributorsPayment
 );
-const pendingProcessingReserves = StableBTreeMap(
+const pendingWarehouseReserves = StableBTreeMap(
   16,
   nat64,
-  Types.ReserveProcessingPayment
+  Types.ReserveWarehousePayment
 );
 const persistedProcessingReserves = StableBTreeMap(
   17,
   Principal,
-  Types.ReserveProcessingPayment
+  Types.ReserveWarehousePayment
 );
 
 const PAYMENT_RESERVATION_PERIOD = 12000n; // reservation period in seconds
@@ -129,6 +129,8 @@ export default Canister({
       const admin = {
         id: uuidv4(),
         owner: ic.caller(),
+        organisationItems:[],
+        pickedUpItems:[],
         ...payload,
         role: "Admin",
         status: "Active",
@@ -199,6 +201,76 @@ export default Canister({
     }
   ),
 
+  // Function to add item to Admin 
+  addAdminItem: update(
+    [text, text],
+    Result(Types.Admin, Types.Message),
+    (adminId, itemId) => {
+      const adminOpt = adminStorage.get(adminId);
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `Admin with id=${adminId} not found` });
+      }
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `Item with id=${itemId} not found` });
+      }
+
+      const admin = adminOpt.Some;
+      const item = itemOpt.Some;
+      admin.organisationItems.push(item);
+      adminStorage.insert(admin.id, admin);
+      return Ok(admin);
+    }
+  ),
+  // Function to add picked up Item to Admin check if the Item pickedUp is true
+  addPickedUpItem: update(
+    [text, text],
+    Result(Types.Admin, Types.Message),
+    (adminId, itemId) => {
+      const adminOpt = adminStorage.get(adminId);
+      if ("None" in adminOpt) {
+        return Err({ NotFound: `Admin with id=${adminId} not found` });
+      }
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `Item with id=${itemId} not found` });
+      }
+
+      const admin = adminOpt.Some;
+      const item = itemOpt.Some;
+      admin.pickedUpItems.push(item);
+      adminStorage.insert(admin.id, admin);
+      return Ok(admin);
+    }
+  ),
+
+  // Mark Item as warehouse paid by the admin
+  markItemAsWarehousePaid: update(
+    [text], 
+    Result(Types.Item, Types.Message),
+    (itemId) => {
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.warehousePaid = true;
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
+  // get all warehouse paid items of the admin
+  getWarehousePaidItems: query([text], Vec(Types.Item), (adminId) => {
+    const items = itemsStorage.values();
+    return items.filter(
+      (item) => item.warehousePaid && item.owner === adminId
+    );
+  }
+  ),
+
+
+
   // ** End of Admin Functions **
 
   // ** Start of Item Functions **
@@ -224,10 +296,15 @@ export default Canister({
         id: uuidv4(),
         owner: adminId,
         quantity: 0n,
+        grade:"",
+        status: "New",
         pickedUp: false,
         packaged: false,
         packagedDetails: None,
         expiration_date: None,
+        warehousePaid: false,
+        distributionSuccesful : false,
+        warehousedSuccesful: false,
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -243,6 +320,24 @@ export default Canister({
     }
   ),
 
+  // gradeItem
+  gradeItem: update(
+    [Types.GradePayload],
+    Result(Types.Item, Types.Message),
+    (gradePayload) => {
+      const itemOpt = itemsStorage.get(gradePayload.itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${gradePayload.itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.grade = gradePayload.grade;
+      item.quantity = gradePayload.quantity;
+      item.status = "Graded";
+      itemsStorage.insert(item.id, item);
+      return Ok(item);
+    }
+  ),
+
   // Function to add packaged Details to an item
   addPackagedDetailsToItem: update(
     [text, Types.Packaging],
@@ -255,6 +350,7 @@ export default Canister({
       const item = itemOpt.Some;
 
       item.packagedDetails = Some(payload);
+      item.status = "Packaged";
       item.packaged = true;
 
       // Update the item in the itemsStorage
@@ -359,6 +455,45 @@ export default Canister({
     }
   ),
 
+  // Function to get graded items for the item owner
+  getGradedItemsForOwner: query(
+    [text],
+    Result(Vec(Types.Item), Types.Message),
+    (ownerId) => {
+      try {
+        // Validate the ownerId input
+        if (!ownerId || typeof ownerId !== "string") {
+          return Err({
+            InvalidPayload: "Owner ID must be a non-empty string.",
+          });
+        }
+
+        // Fetch all items
+        const items = itemsStorage.values();
+
+        // Filter items based on status and owner
+        const filteredItems = items.filter(
+          (item) => item.status === "Graded" && item.owner === ownerId
+        );
+
+        // Check if any items are found
+        if (filteredItems.length === 0) {
+          return Err({
+            NotFound: `No graded items found for owner ID: ${ownerId}.`,
+          });
+        }
+
+        // Return the filtered items
+        return Ok(filteredItems);
+      } catch (error) {
+        // Catch unexpected errors and return an appropriate error message
+        return Err({
+          NotFound: `An unexpected error occurred.`,
+        });
+      }
+    }
+  ),
+
   // Function to get packaged items for the item owner
   getPackagedItemsForOwner: query(
     [text],
@@ -377,7 +512,7 @@ export default Canister({
 
         // Filter items based on status and owner
         const filteredItems = items.filter(
-          (item) => item.packaged && item.owner === ownerId
+          (item) => item.packaged && item.owner === ownerId && item.status === "Packaged"
         );
 
         // Check if any items are found
@@ -835,6 +970,45 @@ export default Canister({
       return distributorCompany.transportationFleet;
     }
   ),
+  // function to add addCompleteItemsDistributionToDistributorCompany
+  addCompleteItemsDistributionToDistributorCompany: update(
+    [text, text],
+    Result(Types.DistributorsCompany, Types.Message),
+    (companyId, itemId) => {
+      const distributorCompanyOpt = distributorsCompanyStorage.get(companyId);
+      if ("None" in distributorCompanyOpt) {
+        return Err({
+          NotFound: `distributor company with id=${companyId} not found`,
+        });
+      }
+      const distributorCompany = distributorCompanyOpt.Some;
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.distributionSuccesful = true;
+      distributorCompany.completeItemsDistribution.push(item);
+      distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
+      return Ok(distributorCompany);
+    }
+  ),
+
+  // getCompleteItemsDistributionInDistributorCompany
+  getCompleteItemsDistributionInDistributorCompany: query(
+    [text],
+    Vec(Types.Item),
+    (companyId) => {
+      const distributorCompanyOpt = distributorsCompanyStorage.get(companyId);
+      if ("None" in distributorCompanyOpt) {
+        return [];
+      }
+      const distributorCompany = distributorCompanyOpt.Some;
+      return distributorCompany.completeItemsDistribution;
+    }
+  ),
+
+
 
   // **End of Distributors Company Functions**
 
@@ -855,6 +1029,7 @@ export default Canister({
         owner: ic.caller(),
         role: "Warehouse Manager",
         status: "Active",
+        itemSuccesfullWarehoused: [],
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -931,6 +1106,46 @@ export default Canister({
       return Ok(updatedWarehouseManager);
     }
   ),
+
+  // function to add itemsuccessfully warehoused to warehouse manager
+  addItemsSuccesfulWarehousing: update(
+    [text, text],
+    Result(Types.WarehouseManager, Types.Message),
+    (managerId, itemId) => {
+      const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `warehouse manager with id=${managerId} not found`,
+        });
+      }
+      const warehouseManager = warehouseManagerOpt.Some;
+      const itemOpt = itemsStorage.get(itemId);
+      if ("None" in itemOpt) {
+        return Err({ NotFound: `item with id=${itemId} not found` });
+      }
+      const item = itemOpt.Some;
+      item.warehousedSuccesful = true;
+      warehouseManager.itemSuccesfullWarehoused.push(item);
+      warehouseManagerStorage.insert(warehouseManager.id, warehouseManager);
+      return Ok(warehouseManager);
+    }
+  ),
+
+  // function to get items successfully warehoused by warehouse manager
+  getItemsSuccesfulWarehousing: query(
+    [text],
+    Vec(Types.Item),
+    (managerId) => {
+      const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
+      if ("None" in warehouseManagerOpt) {
+        return [];
+      }
+      const warehouseManager = warehouseManagerOpt.Some;
+      return warehouseManager.itemSuccesfullWarehoused;
+    }
+  ),
+
+
 
   // **End of Warehouse Manager Functions**
 
@@ -1142,28 +1357,56 @@ export default Canister({
     }
   ),
 
-  // function to assign driver to delivery details
-  assignDriverToDeliveryDetails: update(
+  // get Delivery Tender using deliveryDetailsId for a distributor company 
+  // getTenderForDeliveryDetailsForWarehouseManager
+  getTenderForDeliveryDetailsForWarehouseManager: query(
     [text, text],
-    Result(Types.DeliveryDetails, Types.Message),
-    (deliveryId, driverId) => {
-      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-      if ("None" in deliveryDetailsOpt) {
-        return Err({
-          NotFound: `delivery details with id=${deliveryId} not found`,
-        });
+    Result(Types.DeliveryTender, Types.Message),
+    (managerId, deliveryDetailsId) => {
+      // get all tenders
+      const deliveryTender = deliveryTenderStorage.values();
+      console.log("deliveryTender", deliveryTender);
+      // for loop to check if the tender is accepted and the distributorId is the same as the companyId && delivery
+      // DetailsId is the same as the deliveryDetailsId
+      for (let i = 0; i < deliveryTender.length; i++) {
+        if (
+          deliveryTender[i].accepted &&
+          deliveryTender[i].warehouseManagerId === managerId &&
+          deliveryTender[i].DeliveryDetailsId === deliveryDetailsId
+        ) {
+          console.log("found", deliveryTender[i]);
+          return Ok(deliveryTender[i]);
+        }
       }
-      const deliveryDetails = deliveryDetailsOpt.Some;
-      const driverOpt = driversStorage.get(driverId);
-      if ("None" in driverOpt) {
-        return Err({ NotFound: `driver with id=${driverId} not found` });
-      }
-      const driver = driverOpt.Some;
-      deliveryDetails.driverId = Some(driver);
-      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-      return Ok(deliveryDetails);
-    }
+      return Err({
+        NotFound: `delivery tender with id=${deliveryDetailsId} not found`,
+      });
+    } 
   ),
+
+    // Add a driverId to delivery details
+    addDriverIdToDeliveryDetails: update(
+      [text, text],
+      Result(Types.DeliveryDetails, Types.Message),
+      (deliveryId, driverId) => {
+        const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+        if ("None" in deliveryDetailsOpt) {
+          return Err({
+            NotFound: `delivery details with id=${deliveryId} not found`,
+          });
+        }
+        const deliveryDetails = deliveryDetailsOpt.Some;
+        const driverOpt = driversStorage.get(driverId);
+        if ("None" in driverOpt) {
+          return Err({ NotFound: `driver with id=${driverId} not found` });
+        }
+       
+        deliveryDetails.driverId = Some(driverId);
+        deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+        return Ok(deliveryDetails);
+      }
+    ),
+
 
   // deliveryStatus mark as picked
   markDeliveryDetailsAsPicked: update(
@@ -1183,8 +1426,8 @@ export default Canister({
     }
   ),
 
-  // function to mark delivery as delivered
-  markDeliveryAsDelivered: update(
+  // function to mark delivery as Completed
+  markDeliveryDetailsAsCompleted: update(
     [text],
     Result(Types.DeliveryDetails, Types.Message),
     (deliveryId) => {
@@ -1195,8 +1438,7 @@ export default Canister({
         });
       }
       const deliveryDetails = deliveryDetailsOpt.Some;
-      deliveryDetails.deliveryStatus = "Delivered";
-      deliveryDetails.deliveredDate = Some(new Date());
+      deliveryDetails.deliveryStatus = "Completed";
       deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
       return Ok(deliveryDetails);
     }
@@ -1230,6 +1472,20 @@ export default Canister({
         (deliveryDetail) =>
           deliveryDetail.deliveryStatus === "Completed" &&
           deliveryDetail.driverId.Some === driverId
+      );
+    }
+  ),
+
+  // get Delivery that are completed for a warehouse manager
+  getCompletedDeliveryDetailsForWarehouseManager: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (managerId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Completed" &&
+          deliveryDetail.warehouseManagerId === managerId
       );
     }
   ),
@@ -1286,6 +1542,34 @@ export default Canister({
     }
   ),
 
+  // get delivery details with status new in a warehouse manager
+  getNewDeliveryDetailsForWarehouseManager: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (managerId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "New" &&
+          deliveryDetail.warehouseManagerId === managerId
+      );
+    }
+  ),
+
+    // get delivery details with status Tendered in a warehouse manager
+    getTenderedDeliveryDetailsForWarehouseManager: query(
+      [text],
+      Vec(Types.DeliveryDetails),
+      (managerId) => {
+        const deliveryDetails = deliveryDetailsStorage.values();
+        return deliveryDetails.filter(
+          (deliveryDetail) =>
+            deliveryDetail.deliveryStatus === "Tendered" &&
+            deliveryDetail.warehouseManagerId === managerId
+        );
+      }
+    ),
+ 
   // get Delivery details assigned to a driver
   getDeliveryDetailsAssignedToDriver: query(
     [text],
@@ -1475,6 +1759,17 @@ export default Canister({
       return Ok(filteredDeliveryTenders);
     }
   ),
+  // function to get all delivery tenders of a warehouseManagerId
+  getDeliveryTendersOfWarehouseManager: query(
+    [text],
+    Vec(Types.DeliveryTender),
+    (warehouseManagerId) => {
+      const deliveryTenders = deliveryTenderStorage.values();
+      return deliveryTenders.filter(
+        (deliveryTender) => deliveryTender.warehouseManagerId === warehouseManagerId
+      );
+    }
+  ),
 
   // function to get all delivery tenders of a distributor company
   getDeliveryTendersOfDistributorCompany: query(
@@ -1518,6 +1813,7 @@ export default Canister({
       );
     }
   ),
+
 
   // **End of Delivery Tender Functions**
 
@@ -1600,6 +1896,18 @@ export default Canister({
     }
   ),
 
+  // function to get all admin processing adverts of a admin
+  getAdminProcessingAdvertsOfAdmin: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) => adminProcessingAdvert.adminId === adminId
+      );
+    }
+  ),
+
   // Function to get all admin processing adverts of an item
   getAdminProcessingAdvertsOfItem: query(
     [text],
@@ -1611,6 +1919,20 @@ export default Canister({
       );
     }
   ),
+
+  // function to get all admin processing adverts of a warehouseManagerId
+  getAdminProcessingAdvertsOfWarehouseManager: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (warehouseManagerId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.warehouseManagerId === warehouseManagerId && adminProcessingAdvert.status === "Active"
+      );
+    }
+  ),
+
 
   // function to mark admin processing advert as approved
   markAdminProcessingAdvertAsApproved: update(
@@ -1633,6 +1955,34 @@ export default Canister({
     }
   ),
 
+  // function to get all admin processing adverts that are approved by warehouseManagerId
+  getAdminProcessingAdvertsApprovedByWarehouseManager: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (warehouseManagerId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.warehouseManagerId === warehouseManagerId &&
+          adminProcessingAdvert.status === "Approved"
+      );
+    }
+  ),
+
+  // function to get all Admin proccessing advert that are approved for an admin 
+  getAdminProcessingAdvertsApprovedForAdmin: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.adminId === adminId &&
+          adminProcessingAdvert.status === "Approved"
+      );
+    }
+  ),  
+
   // function to get all admin processing adverts that are Completed
   getCompletedAdminProcessingAdverts: query(
     [],
@@ -1644,6 +1994,22 @@ export default Canister({
       );
     }
   ),
+
+  // getAdminProcessingAdvertCompletedForAdmin
+  getAdminProcessingAdvertCompletedForAdmin: query(
+    [text],
+    Vec(Types.AdminProcessingAdvert),
+    (adminId) => {
+      const adminProcessingAdverts = adminProcessingAdvertStorage.values();
+      return adminProcessingAdverts.filter(
+        (adminProcessingAdvert) =>
+          adminProcessingAdvert.adminId === adminId &&
+          adminProcessingAdvert.status === "Completed"
+      );
+    }
+  ),
+
+
 
   // function to get paid admin processing adverts
   getPaidAdminProcessingAdverts: query(
@@ -1712,63 +2078,120 @@ export default Canister({
     return hexAddressFromPrincipal(principal, 0);
   }),
 
-  // create an Admin Reserve Payment
-  createReserveAdminPay: update(
-    [text],
-    Result(Types.ReserveAdminPayment, Types.Message),
-    (farmerSalesAdvertId) => {
-      const farmerSalesAdvertOpt =
-        adminProcessingAdvertStorage.get(farmerSalesAdvertId);
-      if ("None" in farmerSalesAdvertOpt) {
-        return Err({
-          NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
-        });
-      }
-      const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-      const farmerId = farmerSalesAdvert.farmerId;
-      console.log("farmerId", farmerId);
-      const farmerOpt = adminStorage.get(farmerId);
-      if ("None" in farmerOpt) {
-        return Err({
-          NotFound: `farmer with id=${farmerId} not found`,
-        });
-      }
-      const farmer = farmerOpt.Some;
-      const farmerOwner = farmer.owner;
+ 
 
-      const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
+    // // create a Farmer Reserve Payment
+    // createReserveFarmerPay: update(
+    //   [text],
+    //   Result(Types.ReserveFarmerPayment, Types.Message),
+    //   (farmerSalesAdvertId) => {
+    //     const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
+    //     if ("None" in farmerSalesAdvertOpt) {
+    //       return Err({
+    //         NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
+    //       });
+    //     }
+    //     const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
+    //     const farmerId = farmerSalesAdvert.farmerId;
+    //     console.log("farmerId", farmerId);
+    //     const farmerOpt = farmersStorage.get(farmerId);
+    //     if ("None" in farmerOpt) {
+    //       return Err({
+    //         NotFound: `farmer with id=${farmerId} not found`,
+    //       });
+    //     }
+    //     const farmer = farmerOpt.Some;
+    //     const farmerOwner = farmer.owner;
+  
+    //     const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
+  
+    //     const processingCompanyId = farmerSalesAdvert.processorCompanyId;
+    //     console.log("processingCompanyId", processingCompanyId);
+    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+    //     if ("None" in processingCompanyOpt) {
+    //       return Err({
+    //         NotFound: `processing company with id=${processingCompanyId} not found`,
+    //       });
+    //     }
+    //     const processingCompany = processingCompanyOpt.Some;
+    //     const processingCompanyOwner = processingCompany.owner;
+  
+    //     const reserveFarmerPayment = {
+    //       ProcessorId: processingCompanyId,
+    //       price: cost,
+    //       status: "pending",
+    //       processorPayer: processingCompanyOwner,
+    //       farmerReciever: farmerOwner,
+    //       paid_at_block: None,
+    //       memo: generateCorrelationId(farmerSalesAdvertId),
+    //     };
+  
+    //     console.log("reserveFarmerPayment", reserveFarmerPayment);
+    //     pendingFarmerReserves.insert(reserveFarmerPayment.memo, reserveFarmerPayment);
+    //     discardByTimeout(reserveFarmerPayment.memo, PAYMENT_RESERVATION_PERIOD);
+    //     return Ok(reserveFarmerPayment);
+  
+    //   }
+    // ),
 
-      const processingCompanyId = farmerSalesAdvert.processorCompanyId;
-      console.log("processingCompanyId", processingCompanyId);
-      const processingCompanyOpt =
-        warehouseManagerStorage.get(processingCompanyId);
-      if ("None" in processingCompanyOpt) {
-        return Err({
-          NotFound: `processing company with id=${processingCompanyId} not found`,
-        });
-      }
-      const processingCompany = processingCompanyOpt.Some;
-      const processingCompanyOwner = processingCompany.owner;
+    // // Create createReserveAdminPay function .. Admin to pay the Warehouseis the processor
+    // createReserveAdminPay: update(
+    //   [text],
+    //   Result(Types.ReserveAdminPayment, Types.Message),
+    //   (adminSalesAdvertId) => {
+    //     const adminSalesAdvertOpt = adminProcessingAdvertStorage.get(adminSalesAdvertId);
+    //     if ("None" in adminSalesAdvertOpt) {
+    //       return Err({
+    //         NotFound: `cannot reserve Payment: Admin Sales Advert with id=${adminSalesAdvertId} not available`,
+    //       });
+    //     }
+    //     const adminSalesAdvert = adminSalesAdvertOpt.Some;
+    //     const adminId = adminSalesAdvert.adminId;
+    //     console.log("adminId", adminId);
+    //     const adminOpt = adminStorage.get(adminId);
+    //     if ("None" in adminOpt) {
+    //       return Err({
+    //         NotFound: `admin with id=${adminId} not found`,
+    //       });
+    //     }
+    //     const admin = adminOpt.Some;
+    //     const adminOwner = admin.owner;
 
-      const ReserveAdminPayment = {
-        ProcessorId: processingCompanyId,
-        price: cost,
-        status: "pending",
-        processorPayer: processingCompanyOwner,
-        farmerReciever: farmerOwner,
-        paid_at_block: None,
-        memo: generateCorrelationId(farmerSalesAdvertId),
-      };
+    //     const cost = BigInt(adminSalesAdvert.price * adminSalesAdvert.quantity);
 
-      console.log("ReserveAdminPayment", ReserveAdminPayment);
-      pendingFarmerReserves.insert(
-        ReserveAdminPayment.memo,
-        ReserveAdminPayment
-      );
-      discardByTimeout(ReserveAdminPayment.memo, PAYMENT_RESERVATION_PERIOD);
-      return Ok(ReserveAdminPayment);
-    }
-  ),
+    //     const processingCompanyId = adminSalesAdvert.processorCompanyId;
+    //     console.log("processingCompanyId", processingCompanyId);
+    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+    //     if ("None" in processingCompanyOpt) {
+    //       return Err({
+    //         NotFound: `processing company with id=${processingCompanyId} not found`,
+    //       });
+    //     }
+
+    //     const processingCompany = processingCompanyOpt.Some;
+    //     const processingCompanyOwner = processingCompany.owner;
+
+    //     const reserveAdminPayment = {
+    //       ProcessorId: processingCompanyId,
+    //       price: cost,
+    //       status: "pending",
+    //       processorPayer: processingCompanyOwner,
+    //       adminReciever: adminOwner,
+    //       paid_at_block: None,
+    //       memo: generateCorrelationId(adminSalesAdvertId),
+    //     };
+
+    //     console.log("reserveAdminPayment", reserveAdminPayment);
+    //     pendingAdminReserves.insert(reserveAdminPayment.memo, reserveAdminPayment);
+    //     discardByTimeout(reserveAdminPayment.memo, PAYMENT_RESERVATION_PERIOD);
+
+    //     return Ok(reserveAdminPayment);
+    //   }
+
+    // ),
+  
+
+ 
 
   completeAdminPayment: update(
     [Principal, text, nat64, nat64, nat64],
@@ -1785,7 +2208,7 @@ export default Canister({
           NotFound: `cannot complete the reserve: cannot verify the payment, memo=${memo}`,
         });
       }
-      const pendingReservePayOpt = pendingFarmerReserves.remove(memo);
+      const pendingReservePayOpt = pendingAdminReserves.remove(memo);
       if ("None" in pendingReservePayOpt) {
         return Err({
           NotFound: `cannot complete the reserve: there is no pending reserve with id=${farmerSalesAdvertId}`,
@@ -2057,7 +2480,7 @@ function generateCorrelationId(orderId: text): nat64 {
 
 function discardByTimeout(memo: nat64, delay: Duration) {
   ic.setTimer(delay, () => {
-    const advert = pendingFarmerReserves.remove(memo);
+    const advert = pendingAdminReserves.remove(memo);
     console.log(`Reserve discarded ${advert}`);
   });
 }

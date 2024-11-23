@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Button as BButton, Modal, Form, FloatingLabel } from "react-bootstrap";
 import { Button, Loader, NotificationError, NotificationSuccess } from "../../../components/utils";
-import { addPackagedDetails } from "../../../utils/product";
+import { addPackagedDetails } from "../../../utils/item";
 import { toast } from "react-toastify";
 
 function ProductPackaging({ product }) {

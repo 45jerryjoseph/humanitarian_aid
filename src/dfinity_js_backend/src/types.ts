@@ -36,6 +36,7 @@ export const Packaging = Record({
   owner: text, // This will be the ID of the owner of the item eg Admin
   description: text,
   quantity: nat64,
+  grade: text, // Grade of the item (e.g., A, B, C)
   category: text, // Item category (e.g., food, medical supplies)
   image: text, // Image of the item
   status: text, // Status of the item (e.g., new, used, etc)
@@ -43,6 +44,9 @@ export const Packaging = Record({
   packaged: bool, // If packaged by the WarehouseManager(Processor) is true
   packagedDetails: Opt(Packaging), // Packaging details
   expiration_date: Opt(text), // Expiration date for perishable items
+  warehousePaid: bool, // If the item has been successfully paid for
+  distributionSuccesful: bool, // If the item has been successfully distributed
+  warehousedSuccesful: bool, // If the item has been successfully warehoused
 });
 // New below -Contact Info Struct
 export const ContactInfo = Record({
@@ -72,6 +76,8 @@ export const Admin = Record({
   fullName: text,
   role: text,
   status: text,
+  organisationItems: Vec(Item),
+  pickedUpItems: Vec(Item),
   contact_info: ContactInfo,
   company_records: CompanyDetails,
 });
@@ -83,6 +89,7 @@ export const WarehouseManager = Record({
   fullName: text,
   role: text,
   status: text,
+  itemSuccesfullWarehoused: Vec(Item), // This is added when their is a Succesful Processing
   contact_info: ContactInfo,
   company_records: CompanyDetails,
 });
@@ -315,7 +322,7 @@ export const ItemPayload = Record({
   description: text,
   category: text,
   image: text,
-  status: text, // New, Used, etc
+  // status: text, // New, Used, etc
 });
 
 export const DeliveryDetailsPayload = Record({
@@ -369,6 +376,12 @@ export const FieldWorkerPayload = Record({
   associated_driver: Opt(text),
 });
 
+// GradePayload
+export const GradePayload = Record({
+  itemId: text,
+  grade: text,
+  quantity: nat64,
+});
 // End of New Payloads 
 
 // export const DeliveryTenderPayload = Record({
@@ -512,15 +525,18 @@ export const ReserveDriverPayment = Record({
   memo: nat64,
 });
 
+// ReserveWarehousePayment
 export const ReserveAdminPayment = Record({
   ProcessorId: text,
   price: nat64,
   status: text,
-  processorPayer: Principal,
-  farmerReciever: Principal,
+  adminPayer: Principal,
+  warehouseReciever: Principal,
   paid_at_block: Opt(nat64),
   memo: nat64,
 });
+
+
 
 export const ReserveDistributorsPayment = Record({
   ProcessorId: text,
@@ -533,13 +549,24 @@ export const ReserveDistributorsPayment = Record({
 });
 
 
-// Will work on this when Wholesaler is added
-export const ReserveProcessingPayment = Record({
-  WholesalersId: text,
+// // Will work on this when Wholesaler is added
+// export const ReserveProcessingPayment = Record({
+//   WholesalersId: text,
+//   price: nat64,
+//   status: text,
+//   WholesalersPayer: Principal,
+//   processorReciever: Principal,
+//   paid_at_block: Opt(nat64),
+//   memo: nat64,
+// });
+
+// ReserveWarehousePayment
+export const ReserveWarehousePayment = Record({
+  ProcessorId: text,
   price: nat64,
   status: text,
-  WholesalersPayer: Principal,
-  processorReciever: Principal,
+  processorPayer: Principal,
+  warehouseReciever: Principal,
   paid_at_block: Opt(nat64),
   memo: nat64,
 });

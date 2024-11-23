@@ -4,7 +4,7 @@ import { Button } from "../../../components/utils";
 import { getTenderForDeliveryDetailsForProcessingCompany } from "../../../utils/tender";
 import { toast } from "react-toastify";
 import { NotificationError, NotificationSuccess } from "../../../components/utils/Notifications";
-import { payDistributors } from "../../../utils/processorCompany";
+import { payDistributors } from "../../../utils/warehouse";
 import { Loader } from "../../../components/utils";
 
 

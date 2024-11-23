@@ -1,6 +1,6 @@
 export async function createDeliveryTender(tenderPayload) {
   try {
-    return await window.canister.agroChain.createDeliveryTender(tenderPayload);
+    return await window.canister.aidChain.createDeliveryTender(tenderPayload);
   } catch (err) {
     console.log(err);
     if (err.name === "AgentHTTPResponseError") {
@@ -14,7 +14,7 @@ export async function createDeliveryTender(tenderPayload) {
 // acceptDeliveryTender
 export async function acceptDeliveryTender(tenderId) {
   try {
-    return await window.canister.agroChain.acceptDeliveryTender(tenderId);
+    return await window.canister.aidChain.acceptDeliveryTender(tenderId);
   } catch (err) {
     console.log(err);
     if (err.name === "AgentHTTPResponseError") {
@@ -26,7 +26,7 @@ export async function acceptDeliveryTender(tenderId) {
 
 export async function getDeliveryTender(id) {
   try {
-    return await window.canister.agroChain.getDeliveryTender(id);
+    return await window.canister.aidChain.getDeliveryTender(id);
   } catch (err) {
     if (err.name === "AgentHTTPResponseError") {
       const authClient = window.auth.client;
@@ -38,7 +38,7 @@ export async function getDeliveryTender(id) {
 
 export async function getAllDeliveryTenders() {
   try {
-    return await window.canister.agroChain.getAllDeliveryTenders();
+    return await window.canister.aidChain.getAllDeliveryTenders();
   } catch (err) {
     if (err.name === "AgentHTTPResponseError") {
       const authClient = window.auth.client;
@@ -51,7 +51,7 @@ export async function getAllDeliveryTenders() {
 // updateDeliveryTender
 export async function updateDeliveryTender(id, deliveryTender) {
   try {
-    return await window.canister.agroChain.updateDeliveryTender(id, deliveryTender);
+    return await window.canister.aidChain.updateDeliveryTender(id, deliveryTender);
   } catch (err) {
     console.log(err);
     if (err.name === "AgentHTTPResponseError") {
@@ -61,10 +61,11 @@ export async function updateDeliveryTender(id, deliveryTender) {
   }
 }
 
-// getDeliveryTendersOfProcessingCompany
-export async function getDeliveryTendersOfProcessingCompany(companyId) {
+
+// getDeliveryTendersOfWarehouseManager
+export async function getDeliveryTendersOfWarehouseManager(warehouseManagerId) {
   try {
-    return await window.canister.agroChain.getDeliveryTendersOfProcessingCompany(companyId);
+    return await window.canister.aidChain.getDeliveryTendersOfWarehouseManager(warehouseManagerId);
   } catch
   (err) {
     console.log(err);
@@ -79,7 +80,7 @@ export async function getDeliveryTendersOfProcessingCompany(companyId) {
 // getDeliveryTendersOfDistributorCompany
 export async function getDeliveryTendersOfDistributorCompany(companyId) {
   try {
-    return await window.canister.agroChain.getDeliveryTendersOfDistributorCompany(companyId);
+    return await window.canister.aidChain.getDeliveryTendersOfDistributorCompany(companyId);
   } catch
   (err) {
     console.log(err);
@@ -94,7 +95,7 @@ export async function getDeliveryTendersOfDistributorCompany(companyId) {
 // getTenderedDeliveryDetailsForDistributorCompany
 export async function getTenderForDeliveryDetailsForDistributorCompany(companyId,deliveryDetailsId) {
   try {
-    return await window.canister.agroChain.getTenderForDeliveryDetailsForDistributorCompany(companyId,deliveryDetailsId);
+    return await window.canister.aidChain.getTenderForDeliveryDetailsForDistributorCompany(companyId,deliveryDetailsId);
   } catch
   (err) {
     console.log(err);
@@ -106,10 +107,10 @@ export async function getTenderForDeliveryDetailsForDistributorCompany(companyId
   }
 }
 
-// getTenderForDeliveryDetailsForProcessingCompany
-export async function getTenderForDeliveryDetailsForProcessingCompany(companyId,deliveryDetailsId) {
+// getTenderForDeliveryDetailsForWarehouseManager
+export async function getTenderForDeliveryDetailsForWarehouseManager(managerId,deliveryDetailsId) {
   try {
-    return await window.canister.agroChain.getTenderForDeliveryDetailsForProcessingCompany(companyId,deliveryDetailsId);
+    return await window.canister.aidChain.getTenderForDeliveryDetailsForWarehouseManager(managerId,deliveryDetailsId);
   } catch
   (err) {
     console.log(err);

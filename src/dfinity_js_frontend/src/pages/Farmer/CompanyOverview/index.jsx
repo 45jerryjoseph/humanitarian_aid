@@ -17,7 +17,7 @@ import Wallet from "../../../components/Wallet";
 import { toast } from "react-toastify";
 
 import AddProduct from "../../product/AddProduct";
-import { createProduct, getGradedProductsForFarmer, getNewProductsForFarmer, getPackagedProductsForFarmer, gradeProduct } from "../../../utils/product";
+import { createProduct, getGradedProductsForFarmer, getNewProductsForFarmer, getPackagedProductsForFarmer, gradeProduct } from "../../../utils/item";
 import ProductGrading from "../Grading";
 import ProductPackaging from "../Packaging";
 import SaleAdvert from "../Advert";

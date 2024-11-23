@@ -4,7 +4,7 @@ import { Notification } from "../../components/utils/Notifications";
 import Login from "./Login";
 import { Loader } from "../../components/utils";
 import CompanyOverviewPage from "./CompanyOverview";
-import { getFarmerByOwner } from "../../utils/farmer";
+import { getFarmerByOwner } from "../../utils/admin";
 import ActivateFarmerAccount from "./ActivateFarmerAccount";
 
 const Client = () => {

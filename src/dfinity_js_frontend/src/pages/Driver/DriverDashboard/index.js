@@ -15,7 +15,7 @@ import {
 } from "../../../utils/driver";
 import { toast } from "react-toastify";
 import { getCompletedDeliveryDetailsForDriver, getDeliveryDetailsPickedUp, getRecentDeliveryDetailsAssignedToDriver, markDeliveryDetailsAsCompleted, markDeliveryDetailsAsPicked } from "../../../utils/deliveries";
-import { markProductAsPickedUp } from "../../../utils/product";
+import { markProductAsPickedUp } from "../../../utils/item";
 
 export default function DriverDashboard({ driver, fetchDriver }) {
   const [loading, setLoading] = useState(false);

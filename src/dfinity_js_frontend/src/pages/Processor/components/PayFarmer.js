@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { Button as BButton, Modal, Form, FloatingLabel } from "react-bootstrap";
 import { Button, Loader } from "../../../components/utils";
-import { payFarmer } from "../../../utils/processorCompany";
+import { payFarmer } from "../../../utils/warehouse";
 import { toast } from "react-toastify";
 import { NotificationError, NotificationSuccess } from "../../../components/utils";
 import { markFarmerSalesAdvertAsFarmerPaid } from "../../../utils/advert";

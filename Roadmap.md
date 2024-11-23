@@ -33,3 +33,6 @@ When the project is operational, the flow of activities and interactions can be 
     Monitoring and Optimization
         The Admin User and Logistics Coordinators monitor the entire process through dashboards, tracking shipments, inventory levels, and user performance.
         Feedback from Drivers and Field Workers helps optimize future operations, such as route planning and inventory distribution.
+
+Admin -> Warehouse  similar to farmer -> Processing Company 
+The Admin will Pay for storage // This is a later functionality 
