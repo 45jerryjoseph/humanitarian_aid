@@ -100,7 +100,7 @@ const pendingWarehouseReserves = StableBTreeMap(
   nat64,
   Types.ReserveWarehousePayment
 );
-const persistedProcessingReserves = StableBTreeMap(
+const persistedWarehouseReserves = StableBTreeMap(
   17,
   Principal,
   Types.ReserveWarehousePayment
@@ -129,8 +129,8 @@ export default Canister({
       const admin = {
         id: uuidv4(),
         owner: ic.caller(),
-        organisationItems:[],
-        pickedUpItems:[],
+        organisationItems: [],
+        pickedUpItems: [],
         ...payload,
         role: "Admin",
         status: "Active",
@@ -201,7 +201,7 @@ export default Canister({
     }
   ),
 
-  // Function to add item to Admin 
+  // Function to add item to Admin
   addAdminItem: update(
     [text, text],
     Result(Types.Admin, Types.Message),
@@ -246,7 +246,7 @@ export default Canister({
 
   // Mark Item as warehouse paid by the admin
   markItemAsWarehousePaid: update(
-    [text], 
+    [text],
     Result(Types.Item, Types.Message),
     (itemId) => {
       const itemOpt = itemsStorage.get(itemId);
@@ -263,13 +263,8 @@ export default Canister({
   // get all warehouse paid items of the admin
   getWarehousePaidItems: query([text], Vec(Types.Item), (adminId) => {
     const items = itemsStorage.values();
-    return items.filter(
-      (item) => item.warehousePaid && item.owner === adminId
-    );
-  }
-  ),
-
-
+    return items.filter((item) => item.warehousePaid && item.owner === adminId);
+  }),
 
   // ** End of Admin Functions **
 
@@ -296,14 +291,14 @@ export default Canister({
         id: uuidv4(),
         owner: adminId,
         quantity: 0n,
-        grade:"",
+        grade: "",
         status: "New",
         pickedUp: false,
         packaged: false,
         packagedDetails: None,
         expiration_date: None,
         warehousePaid: false,
-        distributionSuccesful : false,
+        distributionSuccesful: false,
         warehousedSuccesful: false,
         ...payload,
       };
@@ -327,7 +322,9 @@ export default Canister({
     (gradePayload) => {
       const itemOpt = itemsStorage.get(gradePayload.itemId);
       if ("None" in itemOpt) {
-        return Err({ NotFound: `item with id=${gradePayload.itemId} not found` });
+        return Err({
+          NotFound: `item with id=${gradePayload.itemId} not found`,
+        });
       }
       const item = itemOpt.Some;
       item.grade = gradePayload.grade;
@@ -512,7 +509,10 @@ export default Canister({
 
         // Filter items based on status and owner
         const filteredItems = items.filter(
-          (item) => item.packaged && item.owner === ownerId && item.status === "Packaged"
+          (item) =>
+            item.packaged &&
+            item.owner === ownerId &&
+            item.status === "Packaged"
         );
 
         // Check if any items are found
@@ -989,7 +989,10 @@ export default Canister({
       const item = itemOpt.Some;
       item.distributionSuccesful = true;
       distributorCompany.completeItemsDistribution.push(item);
-      distributorsCompanyStorage.insert(distributorCompany.id, distributorCompany);
+      distributorsCompanyStorage.insert(
+        distributorCompany.id,
+        distributorCompany
+      );
       return Ok(distributorCompany);
     }
   ),
@@ -1007,8 +1010,6 @@ export default Canister({
       return distributorCompany.completeItemsDistribution;
     }
   ),
-
-
 
   // **End of Distributors Company Functions**
 
@@ -1132,20 +1133,14 @@ export default Canister({
   ),
 
   // function to get items successfully warehoused by warehouse manager
-  getItemsSuccesfulWarehousing: query(
-    [text],
-    Vec(Types.Item),
-    (managerId) => {
-      const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
-      if ("None" in warehouseManagerOpt) {
-        return [];
-      }
-      const warehouseManager = warehouseManagerOpt.Some;
-      return warehouseManager.itemSuccesfullWarehoused;
+  getItemsSuccesfulWarehousing: query([text], Vec(Types.Item), (managerId) => {
+    const warehouseManagerOpt = warehouseManagerStorage.get(managerId);
+    if ("None" in warehouseManagerOpt) {
+      return [];
     }
-  ),
-
-
+    const warehouseManager = warehouseManagerOpt.Some;
+    return warehouseManager.itemSuccesfullWarehoused;
+  }),
 
   // **End of Warehouse Manager Functions**
 
@@ -1161,18 +1156,10 @@ export default Canister({
         return Err({ NotFound: "invalid payload" });
       }
 
-      // Check if the associated driver exists
-      const driverOpt = driversStorage.get(payload.associated_driver);
-
-      if ("None" in driverOpt) {
-        return Err({
-          NotFound: `driver with id=${payload.associated_driver} not found`,
-        });
-      }
-
       // Create an event with a unique id generated using UUID v4
       const fieldWorker = {
         id: uuidv4(),
+        owner: ic.caller(),
         ...payload,
       };
       // Insert the event into the eventsStorage
@@ -1259,6 +1246,47 @@ export default Canister({
       if (typeof payload !== "object" || Object.keys(payload).length === 0) {
         return Err({ NotFound: "invalid payload" });
       }
+
+      // Ensure that the Warehouse Manager exists
+      const warehouseManagerOpt = warehouseManagerStorage.get(
+        payload.warehouseManagerId
+      );
+
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `Warehouse Manager with id=${payload.warehouseManagerId} not found`,
+        });
+      }
+
+      // Ensure that the Distributors Company exists
+      const distributorCompanyOpt = distributorsCompanyStorage.get(
+        payload.distributorsId
+      );
+
+      if ("None" in distributorCompanyOpt) {
+        return Err({
+          NotFound: `Distributors Company with id=${payload.distributorsId} not found`,
+        });
+      }
+
+      // Ensure that the Item exists
+      const itemOpt = itemsStorage.get(payload.itemId);
+
+      if ("None" in itemOpt) {
+        return Err({
+          NotFound: `Item with id=${payload.itemId} not found`,
+        });
+      }
+
+      // Ensure that the admin exists
+      const adminOpt = adminStorage.get(payload.adminId);
+
+      if ("None" in adminOpt) {
+        return Err({
+          NotFound: `Admin with id=${payload.adminId} not found`,
+        });
+      }
+
       // Create an event with a unique id generated using UUID v4
       const deliveryDetails = {
         id: uuidv4(),
@@ -1357,7 +1385,7 @@ export default Canister({
     }
   ),
 
-  // get Delivery Tender using deliveryDetailsId for a distributor company 
+  // get Delivery Tender using deliveryDetailsId for a distributor company
   // getTenderForDeliveryDetailsForWarehouseManager
   getTenderForDeliveryDetailsForWarehouseManager: query(
     [text, text],
@@ -1381,32 +1409,31 @@ export default Canister({
       return Err({
         NotFound: `delivery tender with id=${deliveryDetailsId} not found`,
       });
-    } 
+    }
   ),
 
-    // Add a driverId to delivery details
-    addDriverIdToDeliveryDetails: update(
-      [text, text],
-      Result(Types.DeliveryDetails, Types.Message),
-      (deliveryId, driverId) => {
-        const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
-        if ("None" in deliveryDetailsOpt) {
-          return Err({
-            NotFound: `delivery details with id=${deliveryId} not found`,
-          });
-        }
-        const deliveryDetails = deliveryDetailsOpt.Some;
-        const driverOpt = driversStorage.get(driverId);
-        if ("None" in driverOpt) {
-          return Err({ NotFound: `driver with id=${driverId} not found` });
-        }
-       
-        deliveryDetails.driverId = Some(driverId);
-        deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
-        return Ok(deliveryDetails);
+  // Add a driverId to delivery details
+  addDriverIdToDeliveryDetails: update(
+    [text, text],
+    Result(Types.DeliveryDetails, Types.Message),
+    (deliveryId, driverId) => {
+      const deliveryDetailsOpt = deliveryDetailsStorage.get(deliveryId);
+      if ("None" in deliveryDetailsOpt) {
+        return Err({
+          NotFound: `delivery details with id=${deliveryId} not found`,
+        });
       }
-    ),
+      const deliveryDetails = deliveryDetailsOpt.Some;
+      const driverOpt = driversStorage.get(driverId);
+      if ("None" in driverOpt) {
+        return Err({ NotFound: `driver with id=${driverId} not found` });
+      }
 
+      deliveryDetails.driverId = Some(driverId);
+      deliveryDetailsStorage.insert(deliveryDetails.id, deliveryDetails);
+      return Ok(deliveryDetails);
+    }
+  ),
 
   // deliveryStatus mark as picked
   markDeliveryDetailsAsPicked: update(
@@ -1556,20 +1583,20 @@ export default Canister({
     }
   ),
 
-    // get delivery details with status Tendered in a warehouse manager
-    getTenderedDeliveryDetailsForWarehouseManager: query(
-      [text],
-      Vec(Types.DeliveryDetails),
-      (managerId) => {
-        const deliveryDetails = deliveryDetailsStorage.values();
-        return deliveryDetails.filter(
-          (deliveryDetail) =>
-            deliveryDetail.deliveryStatus === "Tendered" &&
-            deliveryDetail.warehouseManagerId === managerId
-        );
-      }
-    ),
- 
+  // get delivery details with status Tendered in a warehouse manager
+  getTenderedDeliveryDetailsForWarehouseManager: query(
+    [text],
+    Vec(Types.DeliveryDetails),
+    (managerId) => {
+      const deliveryDetails = deliveryDetailsStorage.values();
+      return deliveryDetails.filter(
+        (deliveryDetail) =>
+          deliveryDetail.deliveryStatus === "Tendered" &&
+          deliveryDetail.warehouseManagerId === managerId
+      );
+    }
+  ),
+
   // get Delivery details assigned to a driver
   getDeliveryDetailsAssignedToDriver: query(
     [text],
@@ -1766,7 +1793,8 @@ export default Canister({
     (warehouseManagerId) => {
       const deliveryTenders = deliveryTenderStorage.values();
       return deliveryTenders.filter(
-        (deliveryTender) => deliveryTender.warehouseManagerId === warehouseManagerId
+        (deliveryTender) =>
+          deliveryTender.warehouseManagerId === warehouseManagerId
       );
     }
   ),
@@ -1813,7 +1841,6 @@ export default Canister({
       );
     }
   ),
-
 
   // **End of Delivery Tender Functions**
 
@@ -1928,11 +1955,11 @@ export default Canister({
       const adminProcessingAdverts = adminProcessingAdvertStorage.values();
       return adminProcessingAdverts.filter(
         (adminProcessingAdvert) =>
-          adminProcessingAdvert.warehouseManagerId === warehouseManagerId && adminProcessingAdvert.status === "Active"
+          adminProcessingAdvert.warehouseManagerId === warehouseManagerId &&
+          adminProcessingAdvert.status === "Active"
       );
     }
   ),
-
 
   // function to mark admin processing advert as approved
   markAdminProcessingAdvertAsApproved: update(
@@ -1969,7 +1996,7 @@ export default Canister({
     }
   ),
 
-  // function to get all Admin proccessing advert that are approved for an admin 
+  // function to get all Admin proccessing advert that are approved for an admin
   getAdminProcessingAdvertsApprovedForAdmin: query(
     [text],
     Vec(Types.AdminProcessingAdvert),
@@ -1981,7 +2008,7 @@ export default Canister({
           adminProcessingAdvert.status === "Approved"
       );
     }
-  ),  
+  ),
 
   // function to get all admin processing adverts that are Completed
   getCompletedAdminProcessingAdverts: query(
@@ -2008,8 +2035,6 @@ export default Canister({
       );
     }
   ),
-
-
 
   // function to get paid admin processing adverts
   getPaidAdminProcessingAdverts: query(
@@ -2078,120 +2103,115 @@ export default Canister({
     return hexAddressFromPrincipal(principal, 0);
   }),
 
- 
+  // // create a Farmer Reserve Payment
+  // createReserveFarmerPay: update(
+  //   [text],
+  //   Result(Types.ReserveFarmerPayment, Types.Message),
+  //   (farmerSalesAdvertId) => {
+  //     const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
+  //     if ("None" in farmerSalesAdvertOpt) {
+  //       return Err({
+  //         NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
+  //       });
+  //     }
+  //     const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
+  //     const farmerId = farmerSalesAdvert.farmerId;
+  //     console.log("farmerId", farmerId);
+  //     const farmerOpt = farmersStorage.get(farmerId);
+  //     if ("None" in farmerOpt) {
+  //       return Err({
+  //         NotFound: `farmer with id=${farmerId} not found`,
+  //       });
+  //     }
+  //     const farmer = farmerOpt.Some;
+  //     const farmerOwner = farmer.owner;
 
-    // // create a Farmer Reserve Payment
-    // createReserveFarmerPay: update(
-    //   [text],
-    //   Result(Types.ReserveFarmerPayment, Types.Message),
-    //   (farmerSalesAdvertId) => {
-    //     const farmerSalesAdvertOpt = FarmerSaleAdvertStorage.get(farmerSalesAdvertId);
-    //     if ("None" in farmerSalesAdvertOpt) {
-    //       return Err({
-    //         NotFound: `cannot reserve Payment: Farmer Sales Advert with id=${farmerSalesAdvertId} not available`,
-    //       });
-    //     }
-    //     const farmerSalesAdvert = farmerSalesAdvertOpt.Some;
-    //     const farmerId = farmerSalesAdvert.farmerId;
-    //     console.log("farmerId", farmerId);
-    //     const farmerOpt = farmersStorage.get(farmerId);
-    //     if ("None" in farmerOpt) {
-    //       return Err({
-    //         NotFound: `farmer with id=${farmerId} not found`,
-    //       });
-    //     }
-    //     const farmer = farmerOpt.Some;
-    //     const farmerOwner = farmer.owner;
-  
-    //     const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
-  
-    //     const processingCompanyId = farmerSalesAdvert.processorCompanyId;
-    //     console.log("processingCompanyId", processingCompanyId);
-    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
-    //     if ("None" in processingCompanyOpt) {
-    //       return Err({
-    //         NotFound: `processing company with id=${processingCompanyId} not found`,
-    //       });
-    //     }
-    //     const processingCompany = processingCompanyOpt.Some;
-    //     const processingCompanyOwner = processingCompany.owner;
-  
-    //     const reserveFarmerPayment = {
-    //       ProcessorId: processingCompanyId,
-    //       price: cost,
-    //       status: "pending",
-    //       processorPayer: processingCompanyOwner,
-    //       farmerReciever: farmerOwner,
-    //       paid_at_block: None,
-    //       memo: generateCorrelationId(farmerSalesAdvertId),
-    //     };
-  
-    //     console.log("reserveFarmerPayment", reserveFarmerPayment);
-    //     pendingFarmerReserves.insert(reserveFarmerPayment.memo, reserveFarmerPayment);
-    //     discardByTimeout(reserveFarmerPayment.memo, PAYMENT_RESERVATION_PERIOD);
-    //     return Ok(reserveFarmerPayment);
-  
-    //   }
-    // ),
+  //     const cost = BigInt(farmerSalesAdvert.price * farmerSalesAdvert.quantity);
 
-    // // Create createReserveAdminPay function .. Admin to pay the Warehouseis the processor
-    // createReserveAdminPay: update(
-    //   [text],
-    //   Result(Types.ReserveAdminPayment, Types.Message),
-    //   (adminSalesAdvertId) => {
-    //     const adminSalesAdvertOpt = adminProcessingAdvertStorage.get(adminSalesAdvertId);
-    //     if ("None" in adminSalesAdvertOpt) {
-    //       return Err({
-    //         NotFound: `cannot reserve Payment: Admin Sales Advert with id=${adminSalesAdvertId} not available`,
-    //       });
-    //     }
-    //     const adminSalesAdvert = adminSalesAdvertOpt.Some;
-    //     const adminId = adminSalesAdvert.adminId;
-    //     console.log("adminId", adminId);
-    //     const adminOpt = adminStorage.get(adminId);
-    //     if ("None" in adminOpt) {
-    //       return Err({
-    //         NotFound: `admin with id=${adminId} not found`,
-    //       });
-    //     }
-    //     const admin = adminOpt.Some;
-    //     const adminOwner = admin.owner;
+  //     const processingCompanyId = farmerSalesAdvert.processorCompanyId;
+  //     console.log("processingCompanyId", processingCompanyId);
+  //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+  //     if ("None" in processingCompanyOpt) {
+  //       return Err({
+  //         NotFound: `processing company with id=${processingCompanyId} not found`,
+  //       });
+  //     }
+  //     const processingCompany = processingCompanyOpt.Some;
+  //     const processingCompanyOwner = processingCompany.owner;
 
-    //     const cost = BigInt(adminSalesAdvert.price * adminSalesAdvert.quantity);
+  //     const reserveFarmerPayment = {
+  //       ProcessorId: processingCompanyId,
+  //       price: cost,
+  //       status: "pending",
+  //       processorPayer: processingCompanyOwner,
+  //       farmerReciever: farmerOwner,
+  //       paid_at_block: None,
+  //       memo: generateCorrelationId(farmerSalesAdvertId),
+  //     };
 
-    //     const processingCompanyId = adminSalesAdvert.processorCompanyId;
-    //     console.log("processingCompanyId", processingCompanyId);
-    //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
-    //     if ("None" in processingCompanyOpt) {
-    //       return Err({
-    //         NotFound: `processing company with id=${processingCompanyId} not found`,
-    //       });
-    //     }
+  //     console.log("reserveFarmerPayment", reserveFarmerPayment);
+  //     pendingFarmerReserves.insert(reserveFarmerPayment.memo, reserveFarmerPayment);
+  //     discardByTimeout(reserveFarmerPayment.memo, PAYMENT_RESERVATION_PERIOD);
+  //     return Ok(reserveFarmerPayment);
 
-    //     const processingCompany = processingCompanyOpt.Some;
-    //     const processingCompanyOwner = processingCompany.owner;
+  //   }
+  // ),
 
-    //     const reserveAdminPayment = {
-    //       ProcessorId: processingCompanyId,
-    //       price: cost,
-    //       status: "pending",
-    //       processorPayer: processingCompanyOwner,
-    //       adminReciever: adminOwner,
-    //       paid_at_block: None,
-    //       memo: generateCorrelationId(adminSalesAdvertId),
-    //     };
+  // // Create createReserveAdminPay function .. Admin to pay the Warehouseis the processor
+  // createReserveAdminPay: update(
+  //   [text],
+  //   Result(Types.ReserveAdminPayment, Types.Message),
+  //   (adminSalesAdvertId) => {
+  //     const adminSalesAdvertOpt = adminProcessingAdvertStorage.get(adminSalesAdvertId);
+  //     if ("None" in adminSalesAdvertOpt) {
+  //       return Err({
+  //         NotFound: `cannot reserve Payment: Admin Sales Advert with id=${adminSalesAdvertId} not available`,
+  //       });
+  //     }
+  //     const adminSalesAdvert = adminSalesAdvertOpt.Some;
+  //     const adminId = adminSalesAdvert.adminId;
+  //     console.log("adminId", adminId);
+  //     const adminOpt = adminStorage.get(adminId);
+  //     if ("None" in adminOpt) {
+  //       return Err({
+  //         NotFound: `admin with id=${adminId} not found`,
+  //       });
+  //     }
+  //     const admin = adminOpt.Some;
+  //     const adminOwner = admin.owner;
 
-    //     console.log("reserveAdminPayment", reserveAdminPayment);
-    //     pendingAdminReserves.insert(reserveAdminPayment.memo, reserveAdminPayment);
-    //     discardByTimeout(reserveAdminPayment.memo, PAYMENT_RESERVATION_PERIOD);
+  //     const cost = BigInt(adminSalesAdvert.price * adminSalesAdvert.quantity);
 
-    //     return Ok(reserveAdminPayment);
-    //   }
+  //     const processingCompanyId = adminSalesAdvert.processorCompanyId;
+  //     console.log("processingCompanyId", processingCompanyId);
+  //     const processingCompanyOpt = processingCompanyStorage.get(processingCompanyId);
+  //     if ("None" in processingCompanyOpt) {
+  //       return Err({
+  //         NotFound: `processing company with id=${processingCompanyId} not found`,
+  //       });
+  //     }
 
-    // ),
-  
+  //     const processingCompany = processingCompanyOpt.Some;
+  //     const processingCompanyOwner = processingCompany.owner;
 
- 
+  //     const reserveAdminPayment = {
+  //       ProcessorId: processingCompanyId,
+  //       price: cost,
+  //       status: "pending",
+  //       processorPayer: processingCompanyOwner,
+  //       adminReciever: adminOwner,
+  //       paid_at_block: None,
+  //       memo: generateCorrelationId(adminSalesAdvertId),
+  //     };
+
+  //     console.log("reserveAdminPayment", reserveAdminPayment);
+  //     pendingAdminReserves.insert(reserveAdminPayment.memo, reserveAdminPayment);
+  //     discardByTimeout(reserveAdminPayment.memo, PAYMENT_RESERVATION_PERIOD);
+
+  //     return Ok(reserveAdminPayment);
+  //   }
+
+  // ),
 
   completeAdminPayment: update(
     [Principal, text, nat64, nat64, nat64],
@@ -2262,23 +2282,23 @@ export default Canister({
 
       const cost = deliveryTender.totalCost;
 
-      const processingCompanyId = deliveryTender.processorsId;
-      console.log("processingCompanyId", processingCompanyId);
-      const processingCompanyOpt =
-        warehouseManagerStorage.get(processingCompanyId);
-      if ("None" in processingCompanyOpt) {
+      const warehouseManagerId = deliveryTender.warehouseManagerId;
+      console.log("warehouseManagerId", warehouseManagerId);
+      const warehouseManagerOpt =
+        warehouseManagerStorage.get(warehouseManagerId);
+      if ("None" in warehouseManagerOpt) {
         return Err({
-          NotFound: `processing company with id=${processingCompanyId} not found`,
+          NotFound: `Warehouse manager with id=${warehouseManagerId} not found`,
         });
       }
-      const processingCompany = processingCompanyOpt.Some;
-      const processingCompanyOwner = processingCompany.owner;
+      const warehouseManager = warehouseManagerOpt.Some;
+      const warehouseManagerOwner = warehouseManager.owner;
 
       const reserveDistributorPayment = {
-        ProcessorId: processingCompanyId,
+        warehouseManagerId: warehouseManagerId,
         price: cost,
         status: "pending",
-        processorPayer: processingCompanyOwner,
+        warehouseManagerPayer: warehouseManagerOwner,
         distributorReciever: distributorOwner,
         paid_at_block: None,
         memo: generateCorrelationId(deliveryTenderId),
@@ -2437,6 +2457,114 @@ export default Canister({
       deliveryTenderStorage.insert(deliveryTender.id, deliveryTender);
 
       persistedDriverReserves.insert(ic.caller(), updatedReservePayment);
+      return Ok(updatedReservePayment);
+    }
+  ),
+
+  // create a Warehouse Manager Reserve Payment
+  createReserveWarehousePay: update(
+    [text],
+    Result(Types.ReserveWarehousePayment, Types.Message),
+    (adminProcessingAdvertId) => {
+      const adminProcessingAdvertOpt = adminProcessingAdvertStorage.get(
+        adminProcessingAdvertId
+      );
+      if ("None" in adminProcessingAdvertOpt) {
+        return Err({
+          NotFound: `cannot reserve Payment: Admin advert with id=${adminProcessingAdvertId} not available`,
+        });
+      }
+      const adminAdvert = adminProcessingAdvertOpt.Some;
+      const warehouseManagerId = adminAdvert.warehouseManagerId;
+      console.log("warehouseManagerId", warehouseManagerId);
+      const warehouseManagerOpt =
+        distributorsCompanyStorage.get(warehouseManagerId);
+      if ("None" in warehouseManagerOpt) {
+        return Err({
+          NotFound: `warehouse Manager with id=${warehouseManagerId} not found`,
+        });
+      }
+      const warehouseManager = warehouseManagerOpt.Some;
+      const warehouseManagerOwner = warehouseManager.owner;
+
+      const cost = adminAdvert.totalCost;
+
+      const adminId = adminAdvert.adminId;
+      console.log("adminId", adminId);
+      const adminOpt = adminStorage.get(adminId);
+      if ("None" in adminOpt) {
+        return Err({
+          NotFound: `Admin with id=${adminId} not found`,
+        });
+      }
+      const admin = adminOpt.Some;
+      const adminOwner = admin.owner;
+
+      const reserveWarehouseManagerPayment = {
+        adminId: adminId,
+        price: cost,
+        status: "pending",
+        adminPayer: adminOwner,
+        warehouseReciever: warehouseManagerOwner,
+        paid_at_block: None,
+        memo: generateCorrelationId(adminProcessingAdvertId),
+      };
+
+      console.log(
+        "reserveWarehouseManagerPayment",
+        reserveWarehouseManagerPayment
+      );
+      pendingWarehouseReserves.insert(
+        reserveWarehouseManagerPayment.memo,
+        reserveWarehouseManagerPayment
+      );
+      discardByTimeout(
+        reserveWarehouseManagerPayment.memo,
+        PAYMENT_RESERVATION_PERIOD
+      );
+      return Ok(reserveWarehouseManagerPayment);
+    }
+  ),
+
+  // complete a Warehouse Manager Reserve Payment
+  completeWarehousePayment: update(
+    [Principal, text, nat64, nat64, nat64],
+    Result(Types.ReserveWarehousePayment, Types.Message),
+    async (reservor, adminProcessingAdvertId, reservePrice, block, memo) => {
+      const paymentVerified = await verifyPaymentInternal(
+        reservor,
+        reservePrice,
+        block,
+        memo
+      );
+      if (!paymentVerified) {
+        return Err({
+          NotFound: `cannot complete the reserve: cannot verify the payment, memo=${memo}`,
+        });
+      }
+      const pendingReservePayOpt = pendingWarehouseReserves.remove(memo);
+      if ("None" in pendingReservePayOpt) {
+        return Err({
+          NotFound: `cannot complete the reserve: there is no pending reserve with id=${adminProcessingAdvertId}`,
+        });
+      }
+      const reservedPay = pendingReservePayOpt.Some;
+      const updatedReservePayment = {
+        ...reservedPay,
+        status: "completed",
+        paid_at_block: Some(block),
+      };
+      const adminAdvertOpt = adminProcessingAdvertStorage.get(
+        adminProcessingAdvertId
+      );
+      if ("None" in adminAdvertOpt) {
+        throw Error(
+          `Admin processing advert with id=${adminProcessingAdvertId} not found`
+        );
+      }
+      const adminAdvert = adminAdvertOpt.Some;
+      adminProcessingAdvertStorage.insert(adminAdvert.id, adminAdvert);
+      persistedWarehouseReserves.insert(ic.caller(), updatedReservePayment);
       return Ok(updatedReservePayment);
     }
   ),

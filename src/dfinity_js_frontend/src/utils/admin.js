@@ -114,7 +114,7 @@ export async function getWarehousePaidItems(farmerId) {
     }
 }
 
-//Enable this section below to be able to pay warehouse
+//Enable this section below to be able to pay warehouse Manager
 // Pay Warehouse
 export async function payWarehouse(advert) {
     console.log("advert", advert)
